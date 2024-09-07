@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execSync } from 'child_process'
-import { parseAllDocuments } from 'yaml'
+import { parseAllDocuments, stringify } from 'yaml'
 import fs from 'fs'
 import Handlebars from 'handlebars'
 import Ajv from 'ajv'
@@ -12,12 +12,13 @@ import path from 'path'
 import { globSync } from 'glob'
 import archiver from 'archiver'
 
-let { input, values, valueFile, archive } = parseArgs({
+let { input, values, valueFile, archive, enableTemplateBase } = parseArgs({
     options: {
         input: { type: 'string', short: 'i', multiple: true },
         values: { type: 'string', short: 'v', multiple: true },
         valueFile: { type: 'string', short: 'f', multiple: true },
-        archive: { type: 'string', short: 'a' }
+        archive: { type: 'string', short: 'a' },
+        enableTemplateBase: { type: 'boolean' }
     }
 }).values
 values = [...(values || [])].map(value => querystring.parse(value)).reduce((acc, value) => ({ ...acc, ...value }), {})
@@ -63,6 +64,8 @@ let failed = 0
 let promises = []
 
 let archiverStream 
+const templateBaseCache = {}
+const inputCache = {}
     
 if (archive) {
     const tarOrZip = path.extname(archive) === '.zip' ? 'zip' : 'tar'
@@ -83,6 +86,41 @@ function getFiles (input) {
 
     throw new Error('Cannot determine manifest and template files')
 }
+
+/**
+ * Simple object check.
+ * @param item
+ * @returns {boolean}
+ */
+export function isObject(item) {
+    return (item && typeof item === 'object') || Array.isArray(item);
+  }
+  
+  /**
+   * Deep merge two objects.
+   * @param target
+   * @param ...sources
+   */
+  export function mergeDeep(target, ...sources) {
+    if (!sources.length) return target;
+    const source = sources.shift();
+  
+    if (isObject(target) && isObject(source)) {
+      for (const key in source) {
+        if (isObject(source[key])) {
+          if (!target[key]) {
+            if (Array.isArray(source[key])) Object.assign(target, { [key]: [] });
+            else Object.assign(target, { [key]: {} });
+        }
+          mergeDeep(target[key], source[key]);
+        } else {
+          Object.assign(target, { [key]: source[key] });
+        }
+      }
+    }
+  
+    return mergeDeep(target, ...sources);
+  }
 
 function parseInput(input) {
     const [template, manifest, schema] = getFiles(input)
@@ -132,10 +170,34 @@ function parseInput(input) {
                 return
             }
     
+            
             if (!substitution.$in) return
+
             const ext = path.extname(substitution.$out).substring(1)
-            const loadCommand = path.extname(substitution.$in) === '.xml' ? 'load_xml' : 'load'
-            await writeFileInt(substitution.$out, execSync(`yq -o=${ext} -n '${loadCommand}("${substitution.$in}") * ${JSON.stringify(cleanup(substitution))}'`).toString())
+            let loadCommand = path.extname(substitution.$in) === '.xml' ? 'load_xml' : 'load'
+
+            
+            let output 
+            if (!enableTemplateBase && !inputCache[substitution.$in]) inputCache[substitution.$in] = parseAllDocuments(fs.readFileSync(substitution.$in, 'utf8'))[0].toJSON()
+
+            if (enableTemplateBase) {
+                if (!templateBaseCache[substitution.$in]) {
+                    templateBaseCache[substitution.$in] = Handlebars.compile(fs.readFileSync(substitution.$in, 'utf8'), { noEscape: true })
+                }
+
+                output = mergeDeep(parseAllDocuments(templateBaseCache[substitution.$in](item))[0].toJSON(), cleanup({...substitution}))                
+                if (ext === 'yaml') output = stringify(output)
+                if (ext === 'json') output = JSON.stringify(output)
+                if (ext === 'xml') throw new Error('Not supported')
+            }
+            else if (loadCommand === 'load_xml') output = execSync(`yq -o=${ext} -n '${loadCommand}("${substitution.$in}") * ${JSON.stringify(cleanup({...substitution}))}'`).toString()
+            else {
+                output = mergeDeep(inputCache[substitution.$in], cleanup({...substitution}))
+                if (ext === 'yaml') output = stringify(output)
+                if (ext === 'json') output = JSON.stringify(output)
+                if (ext === 'xml') throw new Error('Not supported')
+            }
+            await writeFileInt(substitution.$out, output)
         })())
     }
 }

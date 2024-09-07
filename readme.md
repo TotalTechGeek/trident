@@ -233,6 +233,13 @@ The structure of the output will be determined solely by the `$out` key in the t
 
 Trident currently supports YAML, JSON and XML for base configurations.
 
+### Enabling Templating in the Base Configurations
+
+While I like how Kustomize separates the templating from the base configurations, I understand that this can be a bit cumbersome, especially if  a `{{name}}` type value is used in multiple places.
+
+So while I encourage you to keep your base configurations as clean as possible, you can enable templating in the base configurations by using the flag `--enableTemplateBase`.
+
+Even if you enable this flag, I strongly recommend setting up most of your patches in the templates, and use the templating sparingly for values that are used in multiple places.
 
 ### Why "Trident"?
 
