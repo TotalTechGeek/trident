@@ -11,6 +11,7 @@ import { mkdir, writeFile, copyFile } from 'fs/promises'
 import path from 'path'
 import { globSync } from 'glob'
 import archiver from 'archiver'
+import helpers from 'handlebars-helpers'
 
 let { input, values, valueFile, archive, enableTemplateBase } = parseArgs({
     options: {
@@ -34,6 +35,9 @@ for (let file of valueFile || []) {
 if (!input) throw new Error('No input file specified')
 
 const ajv = new Ajv({ useDefaults: true, allErrors: true })
+helpers({ handlebars: Handlebars })
+Handlebars.registerHelper('min', (...args) => Math.min(...args.slice(0, -1)))
+Handlebars.registerHelper('max', (...args) => Math.max(...args.slice(0, -1)))
 Handlebars.registerHelper('json', ctx => JSON.stringify(ctx))
 Handlebars.registerHelper('merge', (a, b) => ({ ...a, ...b }))
 Handlebars.registerHelper('default', (a, b) => a ?? b)

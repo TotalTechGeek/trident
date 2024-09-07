@@ -99,6 +99,10 @@ merge | Merges two or more objects together | `{{merge env $values.env}}`
 default | Sets a default value if the value is not present, I would recommend using schema instead though | `{{default replicas 1}}` 
 object | Constructs a new object | `{{object "key" "value" "key2" "value2"}}`
 or | Returns the first non-falsy value | `{{or env $values.env}}`
+min | Returns the minimum value | `{{min replicas 1}}`
+max | Returns the maximum value | `{{max replicas 10}}`
+
+We also support the methods from [Handlebars-Helpers](https://npmjs.com/package/handlebars-helpers).
 
 We recommend strongly that you check out the handlebars documentation directly, but you're able to use any of the built-in helpers in your templates, such as `if`, `each`, etc.
 
