@@ -1,0 +1,17 @@
+{
+  "name": "trident-template",
+  "version": "0.0.1",
+  "license": "MIT",
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "archiver": "^7.0.1",
+    "awesome-ajv-errors": "^5.1.0",
+    "glob": "^11.0.0",
+    "handlebars": "^4.7.8",
+    "yaml": "^2.5.1"
+  },
+  "bin": {
+    "trident": "./index.js"
+  },
+  "type": "module"
+}
