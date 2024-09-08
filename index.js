@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execSync } from 'child_process'
-import { parseAllDocuments, stringify } from 'yaml'
+import { load, loadAll, dump } from 'js-yaml'
 import fs from 'fs'
 import Handlebars from 'handlebars'
 import Ajv from 'ajv'
@@ -28,7 +28,7 @@ for (let file of valueFile || []) {
     let varName = file 
     if (file.includes('=')) [varName, file] = file.split('=')
     else varName = path.basename(file, path.extname(file))
-    const content = parseAllDocuments(fs.readFileSync(file, 'utf8')).map(doc => doc.toJSON())
+    const content = loadAll(fs.readFileSync(file, 'utf8'))
     values[varName] = content.reduce((acc, value) => ({ ...acc, ...value }), {})
 }
 
@@ -131,6 +131,27 @@ function replace (str, obj) {
     return str
 }
 
+async function writeFileInt (file, content) {
+    if (archiverStream) {
+        archiverStream.append(content, { name: file })
+        return
+    }
+
+    await mkdir(file.split('/').slice(0, -1).join('/'), { recursive: true })
+    await writeFile(file, content)
+}
+
+async function copyFileInt (file, output) {
+    if (output?.trim() === '.') output = ''
+    if (archiverStream) {
+        archiverStream.file(file, { name: (output ? output + '/' : '') + path.basename(file) })
+        return
+    }
+
+    if (output) await mkdir(output, { recursive: true })
+    await copyFile(file, (output ? output + '/' : '') + path.basename(file))
+}
+
 function parseInput(input) {
     const [template, manifest, schema] = getFiles(input)
 
@@ -140,29 +161,7 @@ function parseInput(input) {
     if (schema) schemaDoc = JSON.parse(fs.readFileSync(schema, 'utf8'))
     const validate = ajv.compile(schemaDoc)
     
-    
-    async function writeFileInt (file, content) {
-        if (archiverStream) {
-            archiverStream.append(content, { name: file })
-            return
-        }
-    
-        await mkdir(file.split('/').slice(0, -1).join('/'), { recursive: true })
-        await writeFile(file, content)
-    }
-    
-    async function copyFileInt (file, output) {
-        if (output?.trim() === '.') output = ''
-        if (archiverStream) {
-            archiverStream.file(file, { name: (output ? output + '/' : '') + path.basename(file) })
-            return
-        }
-    
-        if (output) await mkdir(output, { recursive: true })
-        await copyFile(file, (output ? output + '/' : '') + path.basename(file))
-    }
-    
-    for (const item of parseAllDocuments(fs.readFileSync(manifest, 'utf8')).map(doc => doc.toJSON())) {
+    for (const item of loadAll(fs.readFileSync(manifest, 'utf8'))) {
         count++
         item.$values = values
         if (!validate(item)) {
@@ -171,7 +170,8 @@ function parseInput(input) {
             failed++
             continue
         }
-        const config = parseAllDocuments(substituteTemplate(item)).map(doc => doc.toJSON())
+        
+        const config = loadAll(substituteTemplate(item))
         for (const substitution of config) promises.push((async () => {
             if (!substitution) return
             if (substitution.$copy) {
@@ -188,22 +188,22 @@ function parseInput(input) {
 
             
             let output 
-            if (!enableTemplateBase && !inputCache[substitution.$in]) inputCache[substitution.$in] = parseAllDocuments(fs.readFileSync(substitution.$in, 'utf8'))[0].toJSON()
+            if (!enableTemplateBase && !inputCache[substitution.$in]) inputCache[substitution.$in] = load(fs.readFileSync(substitution.$in, 'utf8'))
 
             if (enableTemplateBase) {
                 if (!templateBaseCache[substitution.$in]) {
                     templateBaseCache[substitution.$in] = Handlebars.compile(fs.readFileSync(substitution.$in, 'utf8'), { noEscape: true })
                 }
 
-                output = mergeDeep(parseAllDocuments(templateBaseCache[substitution.$in](item))[0].toJSON(), cleanup({...substitution}))                
-                if (ext === 'yaml') output = stringify(output)
+                output = mergeDeep(load(templateBaseCache[substitution.$in](item)), cleanup({...substitution}))                
+                if (ext === 'yaml') output = dump(output)
                 if (ext === 'json') output = JSON.stringify(output)
                 if (ext === 'xml') throw new Error('Not supported')
             }
             else if (loadCommand === 'load_xml') output = execSync(`yq -o=${ext} -n '${loadCommand}("${substitution.$in}") * ${JSON.stringify(cleanup({...substitution}))}'`).toString()
             else {
                 output = mergeDeep(inputCache[substitution.$in], cleanup({...substitution}))
-                if (ext === 'yaml') output = stringify(output)
+                if (ext === 'yaml') output = dump(output)
                 if (ext === 'json') output = JSON.stringify(output)
                 if (ext === 'xml') throw new Error('Not supported')
             }
