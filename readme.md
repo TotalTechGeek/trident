@@ -139,6 +139,21 @@ $copy: base/info/*.txt
 $out: {{name}}/info
 ```
 
+`$replace` is a special key that can be used to replace literal strings in the base configuration. For most cases, I'd recommend using patching instead as described above, but this can be useful when you need to replace a value in numerous places in the base configuration.
+
+Example:
+
+```yaml
+$in: base/deployment.yaml
+$out: {{name}}/deployment.yaml
+$replace:
+  SERVICE_NAME: {{name}}
+```
+
+This will replace all instances of `SERVICE_NAME` in the base configuration with the name of the service.
+
+"Is this not a form of templating in the base configuration?" you might ask. Admittedly -- yes, yes it is. I'd encourage you to use this sparingly. 
+
 ### Global Variables
 
 If you have a set of variables you want to apply across all items in your manifest, you can either import them from a file or specify them on the CLI. They are referenced in templates as `$values`.
@@ -239,7 +254,9 @@ Trident currently supports YAML, JSON and XML for base configurations.
 
 ### Enabling Templating in the Base Configurations
 
-While I like how Kustomize separates the templating from the base configurations, I understand that this can be a bit cumbersome, especially if  a `{{name}}` type value is used in multiple places.
+*Hey! Maybe consider using `$replace` instead of this!*
+
+While I like how Kustomize separates the templating from the base configurations, I understand that this can be a bit cumbersome, especially if  a `{{name}}`-like value is used in multiple places.
 
 So while I encourage you to keep your base configurations as clean as possible, you can enable templating in the base configurations by using the flag `--enableTemplateBase`.
 

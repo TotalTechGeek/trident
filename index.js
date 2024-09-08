@@ -126,6 +126,11 @@ export function isObject(item) {
     return mergeDeep(target, ...sources);
   }
 
+function replace (str, obj) {
+    for (const key in obj) str = str.replace(new RegExp(key, 'g'), obj[key])
+    return str
+}
+
 function parseInput(input) {
     const [template, manifest, schema] = getFiles(input)
 
@@ -201,7 +206,7 @@ function parseInput(input) {
                 if (ext === 'json') output = JSON.stringify(output)
                 if (ext === 'xml') throw new Error('Not supported')
             }
-            await writeFileInt(substitution.$out, output)
+            await writeFileInt(substitution.$out, replace(output, substitution.$replace || {}))
         })())
     }
 }
