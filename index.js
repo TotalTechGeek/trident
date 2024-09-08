@@ -152,13 +152,14 @@ function parseInput(input) {
     }
     
     async function copyFileInt (file, output) {
+        if (output?.trim() === '.') output = ''
         if (archiverStream) {
-            archiverStream.file(file, { name: output + '/' + path.basename(file) })
+            archiverStream.file(file, { name: (output ? output + '/' : '') + path.basename(file) })
             return
         }
     
-        await mkdir(output, { recursive: true })
-        await copyFile(file, output + '/' + path.basename(file))
+        if (output) await mkdir(output, { recursive: true })
+        await copyFile(file, (output ? output + '/' : '') + path.basename(file))
     }
     
     for (const item of parseAllDocuments(fs.readFileSync(manifest, 'utf8')).map(doc => doc.toJSON())) {
