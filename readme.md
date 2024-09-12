@@ -318,6 +318,7 @@ $values:
 ### Flags 
 
 Flag | Description
+-- | --
 --relativeToManifest | If set, any input files will be resolved relative to the manifest file.
 --enableTemplateBase | If set, templating will be enabled in the base configurations.
 --dry | If set, the output will not be written to the filesystem, and will be printed to the console instead.
