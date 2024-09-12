@@ -13,7 +13,10 @@ import { globSync } from 'glob'
 import archiver from 'archiver'
 import helpers from 'handlebars-helpers'
 
-let { input, values, valueFile, archive, enableTemplateBase, dry, allowValuesSharing, relativeToManifest } = parseArgs({
+// This is a workaround to allow the $values to be shared between the import and derived templates
+const ATTACHED = Symbol('attached')
+
+let { input, values, valueFile, archive, enableTemplateBase, dry, allowValuesSharing, relativeToManifest, relativeToTemplate, relative, base } = parseArgs({
     options: {
         input: { type: 'string', short: 'i', multiple: true },
         values: { type: 'string', short: 'v', multiple: true },
@@ -22,9 +25,13 @@ let { input, values, valueFile, archive, enableTemplateBase, dry, allowValuesSha
         enableTemplateBase: { type: 'boolean' },
         dry: { type: 'boolean' },
         allowValuesSharing: { type: 'boolean' },
-        relativeToManifest: { type: 'boolean' }
+        relativeToManifest: { type: 'boolean' },
+        relativeToTemplate: { type: 'boolean' },
+        relative: { type: 'boolean' },
+        base: { type: 'boolean' }
     }
 }).values
+relative = relative || relativeToManifest || relativeToTemplate
 values = [...(values || [])].map(value => querystring.parse(value)).reduce((acc, value) => ({ ...acc, ...value }), {})
 
 for (let file of valueFile || []) {
@@ -62,7 +69,8 @@ Handlebars.registerHelper('omitRegex', (obj, regex) => {
 Handlebars.registerHelper('or', (...args) => args.slice(0, -1).find(arg => arg))
 Handlebars.registerHelper('import', (options) => {
     if (!options.data.original) options.data.original = options.data.root.$values
-    options.data.root.$values = structuredClone(options.data.original)
+    options.data.root.$values[ATTACHED] = structuredClone(options.data.original)
+    options.data.root.$values = options.data.root.$values[ATTACHED]
     const manifest = options.data.root.$values.$manifest
     let res = load(options.fn(options.data.root))
     for (const item of res.$values) {
@@ -94,20 +102,27 @@ let promises = []
 let archiverStream 
 const templateBaseCache = {}
 const inputCache = {}
-    
-if (archive) {
+const archives = {}
+
+function createArchive (archive) {
+    if (!archive) return
+    if (archives[archive]) return archives[archive]
     const tarOrZip = path.extname(archive) === '.zip' ? 'zip' : 'tar'
     const compressedTar = archive.endsWith('.gz') || archive.endsWith('.tgz')
-    archiverStream = archiver(tarOrZip, { zlib: { level: 7 }, gzip: compressedTar })
+    const archiverStream = archiver(tarOrZip, { zlib: { level: 7 }, gzip: compressedTar })
     archiverStream.pipe(fs.createWriteStream(archive))
+    archives[archive] = archiverStream
+    return archiverStream
 }
 
 function getFiles (input) {
     if (input.includes(',')) return input.split(',')
     
     // check if input is a directory
-    if (fs.statSync(input).isDirectory() && fs.existsSync(input + '/manifest.yaml') && fs.existsSync(input + '/template.yaml')) {
-        const result = [input + '/template.yaml', input + '/manifest.yaml']
+    if (fs.statSync(input).isDirectory() && fs.existsSync(input + '/template.yaml')) {
+        const result = [input + '/template.yaml']
+        if (fs.existsSync(input + '/manifest.yaml')) result.push(input + '/manifest.yaml')
+        else result.push(null)
         if (fs.existsSync(input + '/schema.json')) result.push(input + '/schema.json')
         return result
     }
@@ -155,7 +170,7 @@ function replace (str, obj) {
     return str
 }
 
-async function writeFileInt (file, content) {
+async function writeFileInt (file, content, archiverStream) {
     if (dry) {
         console.log('>> ' + file)
         console.log(content)
@@ -171,7 +186,7 @@ async function writeFileInt (file, content) {
     await writeFile(file, content)
 }
 
-async function copyFileInt (file, output) {
+async function copyFileInt (file, output, archiverStream) {
     if (dry) {
         console.log('>> ' + (output ? output + '/' : '') + path.basename(file))
         return
@@ -188,7 +203,7 @@ async function copyFileInt (file, output) {
 }
 
 function resolvePath (file, manifestLocation) {
-    if (relativeToManifest) {
+    if (relative) {
         // get dir of manifest file
         const manifestDir = path.dirname(manifestLocation)
         return path.resolve(manifestDir, file)
@@ -196,24 +211,23 @@ function resolvePath (file, manifestLocation) {
     return file
 }
 
-function parseInput(input) {
-    const [template, manifest, schema] = getFiles(input)
 
-    const templateFile = '{{cleanupImports}}\n' + 
-        fs.readFileSync(template, 'utf8')
-        .replace(/\$values:.*\n(?:\s+.+\n)*/g, s => `{{#import}}${s}{{/import}}\n`)
-        .replace(/^---/gm, '{{cleanImports}}\n---')
+function process (template, manifest, schema = { type: 'object', properties: { name: { type: 'string' }}, required: ['name'], additionalProperties: true }, {
+    templateLocation = '.',
+    $values = values,
+    additional = null,
+    archiverStream = null
+} = {}) {
+    const substituteTemplate = Handlebars.compile(template, { noEscape: true })
     
-    const substituteTemplate = Handlebars.compile(templateFile, { noEscape: true })
-    
-    let schemaDoc = { type: 'object', properties: { name: { type: 'string' }}, required: ['name'], additionalProperties: true }
-    if (schema) schemaDoc = JSON.parse(fs.readFileSync(schema, 'utf8'))
-    const validate = ajv.compile(schemaDoc)
-    
-    for (const item of loadAll(fs.readFileSync(manifest, 'utf8'))) {
+    const validate = ajv.compile(schema)
+
+
+    for (let item of manifest) {
         count++
-        item.$values = values
-        item.$values.$manifest = manifest
+        if (additional) item = Object.assign({}, additional, item)
+        item.$values = $values
+        item.$values.$manifest = templateLocation
         if (!validate(item)) {
             console.error("\x1b[33m" + `Error occurred on "${item?.name ?? '$[' + (count-1) + ']'}"`)
             console.error(prettify(validate, { data: item }))
@@ -224,11 +238,26 @@ function parseInput(input) {
         const config = loadAll(substituteTemplate(item))
         for (const substitution of config) promises.push((async () => {
             if (!substitution) return
+
+            if (substitution.$template && substitution.$manifest) {
+                const location = resolvePath(substitution.$template, templateLocation)
+                const template = readTemplate(location)
+                let manifest = substitution.$manifest
+                if (typeof manifest === 'string') manifest = loadAll(fs.readFileSync(resolvePath(manifest, templateLocation), 'utf8'))
+                const schema = substitution.$schema ? JSON.parse(fs.readFileSync(resolvePath(substitution.$schema, templateLocation), 'utf8')) : undefined
+                return process(template, manifest, schema, {
+                    templateLocation: location,
+                    $values: $values[ATTACHED],
+                    additional: { ...item, ...cleanup({...substitution}) },
+                    archiverStream: substitution.$archive ? createArchive(substitution.$archive) : archiverStream
+                })
+            }
+
             if (substitution.$copy) {
                 const files = globSync(substitution.$copy.split(',').map(file => file.trim()), {
-                    ...(relativeToManifest && { cwd: path.dirname(manifest) })
+                    ...(relative && { cwd: path.dirname(templateLocation) })
                 })
-                for (const file of files) await copyFileInt(resolvePath(file, manifest), substitution.$out)
+                for (const file of files) await copyFileInt(resolvePath(file, templateLocation), substitution.$out, archiverStream)
                 return
             }
     
@@ -240,11 +269,11 @@ function parseInput(input) {
 
             
             let output 
-            if (!enableTemplateBase && !inputCache[substitution.$in]) inputCache[substitution.$in] = load(fs.readFileSync(resolvePath(substitution.$in, manifest), 'utf8'))
+            if (!enableTemplateBase && !inputCache[substitution.$in]) inputCache[substitution.$in] = load(fs.readFileSync(resolvePath(substitution.$in, templateLocation), 'utf8'))
 
             if (enableTemplateBase) {
                 if (!templateBaseCache[substitution.$in]) {
-                    templateBaseCache[substitution.$in] = Handlebars.compile(fs.readFileSync(resolvePath(substitution.$in, manifest), 'utf8'), { noEscape: true })
+                    templateBaseCache[substitution.$in] = Handlebars.compile(fs.readFileSync(resolvePath(substitution.$in, templateLocation), 'utf8'), { noEscape: true })
                 }
 
                 output = mergeDeep(load(templateBaseCache[substitution.$in](item)), cleanup({...substitution}))                
@@ -252,16 +281,39 @@ function parseInput(input) {
                 if (ext === 'json') output = JSON.stringify(output)
                 if (ext === 'xml') throw new Error('Not supported')
             }
-            else if (loadCommand === 'load_xml') output = execSync(`yq -o=${ext} -n '${loadCommand}("${resolvePath(substitution.$in, manifest)}") * ${JSON.stringify(cleanup({...substitution}))}'`).toString()
+            else if (loadCommand === 'load_xml') output = execSync(`yq -o=${ext} -n '${loadCommand}("${resolvePath(substitution.$in, templateLocation)}") * ${JSON.stringify(cleanup({...substitution}))}'`).toString()
             else {
-                output = mergeDeep(inputCache[substitution.$in], cleanup({...substitution}))
+                output = mergeDeep(structuredClone(inputCache[substitution.$in]), cleanup({...substitution}))
                 if (ext === 'yaml') output = dump(output)
                 if (ext === 'json') output = JSON.stringify(output)
                 if (ext === 'xml') throw new Error('Not supported')
             }
-            await writeFileInt(substitution.$out, replace(output, substitution.$replace || {}))
+            await writeFileInt(substitution.$out, replace(output, substitution.$replace || {}), archiverStream)
         })())
     }
+}
+
+function readTemplate (file) {
+    return '{{cleanupImports}}\n' + 
+        fs.readFileSync(file, 'utf8')
+        .replace(/\$values:.*\n(?:\s+.+\n)*/g, s => `{{#import}}${s}{{/import}}\n`)
+        .replace(/^---/gm, '{{cleanImports}}\n---')
+}
+
+
+function parseInput(input) {
+    let [template, manifest, schema] = getFiles(input)
+
+    if (!manifest && !base) throw new Error('No manifest file found')
+    if (!manifest && base) manifest = [{ name: 'Base' }]
+    
+    const schemaDoc = schema ? JSON.parse(fs.readFileSync(schema, 'utf8')) : undefined
+    const manifestData = typeof manifest === 'string' ? loadAll(fs.readFileSync(manifest, 'utf8')) : manifest
+
+    return process(readTemplate(template), manifestData, schemaDoc, {
+        templateLocation: template,
+        archiverStream: createArchive(archive)
+    })    
 }
 
 let start = Date.now()
@@ -273,4 +325,4 @@ console.log("\x1b[33m" + `Processed ${count} items, ${failed} failed.` +
     ' Time to emit: ' + (end - start) + 'ms'
     + "\x1b[0m")
 
-if (archiverStream) await archiverStream.finalize()
+for (const key in archives) archives[key].finalize()
