@@ -13,13 +13,16 @@ import { globSync } from 'glob'
 import archiver from 'archiver'
 import helpers from 'handlebars-helpers'
 
-let { input, values, valueFile, archive, enableTemplateBase } = parseArgs({
+let { input, values, valueFile, archive, enableTemplateBase, dry, allowValuesSharing, relativeToManifest } = parseArgs({
     options: {
         input: { type: 'string', short: 'i', multiple: true },
         values: { type: 'string', short: 'v', multiple: true },
         valueFile: { type: 'string', short: 'f', multiple: true },
         archive: { type: 'string', short: 'a' },
-        enableTemplateBase: { type: 'boolean' }
+        enableTemplateBase: { type: 'boolean' },
+        dry: { type: 'boolean' },
+        allowValuesSharing: { type: 'boolean' },
+        relativeToManifest: { type: 'boolean' }
     }
 }).values
 values = [...(values || [])].map(value => querystring.parse(value)).reduce((acc, value) => ({ ...acc, ...value }), {})
@@ -57,6 +60,27 @@ Handlebars.registerHelper('omitRegex', (obj, regex) => {
     return result
 })
 Handlebars.registerHelper('or', (...args) => args.slice(0, -1).find(arg => arg))
+Handlebars.registerHelper('import', (options) => {
+    if (!options.data.original) options.data.original = options.data.root.$values
+    options.data.root.$values = structuredClone(options.data.original)
+    const manifest = options.data.root.$values.$manifest
+    let res = load(options.fn(options.data.root))
+    for (const item of res.$values) {
+        for (const key in item) {
+            if (!options.data.root.$values) options.data.root.$values = {}
+            if (!options.data.root.$values[key] && key !== '.') options.data.root.$values[key] = {}
+            const choice = key === '.' ? options.data.root.$values : options.data.root.$values[key]
+            if (typeof item[key] === 'object') Object.assign(choice, item[key])
+            else if (fs.existsSync(resolvePath(item[key], manifest))) Object.assign(choice, load(fs.readFileSync(resolvePath(item[key], manifest), 'utf8')))
+            else console.warn('Warning could not find: ' + item[key] + ', skipping.')
+        }
+    }
+    return ''
+})
+Handlebars.registerHelper('cleanImports', (options) => {
+    if (!allowValuesSharing && options.data.original) options.data.root.$values = options.data.original
+    return ''
+})
 
 function cleanup (substitution) {
     for (const key of Object.keys(substitution)) if (key.startsWith('$')) delete substitution[key]
@@ -132,6 +156,12 @@ function replace (str, obj) {
 }
 
 async function writeFileInt (file, content) {
+    if (dry) {
+        console.log('>> ' + file)
+        console.log(content)
+        return
+    }
+
     if (archiverStream) {
         archiverStream.append(content, { name: file })
         return
@@ -142,6 +172,11 @@ async function writeFileInt (file, content) {
 }
 
 async function copyFileInt (file, output) {
+    if (dry) {
+        console.log('>> ' + (output ? output + '/' : '') + path.basename(file))
+        return
+    }
+
     if (output?.trim() === '.') output = ''
     if (archiverStream) {
         archiverStream.file(file, { name: (output ? output + '/' : '') + path.basename(file) })
@@ -152,10 +187,24 @@ async function copyFileInt (file, output) {
     await copyFile(file, (output ? output + '/' : '') + path.basename(file))
 }
 
+function resolvePath (file, manifestLocation) {
+    if (relativeToManifest) {
+        // get dir of manifest file
+        const manifestDir = path.dirname(manifestLocation)
+        return path.resolve(manifestDir, file)
+    }
+    return file
+}
+
 function parseInput(input) {
     const [template, manifest, schema] = getFiles(input)
 
-    const substituteTemplate = Handlebars.compile(fs.readFileSync(template, 'utf8'), { noEscape: true })
+    const templateFile = '{{cleanupImports}}\n' + 
+        fs.readFileSync(template, 'utf8')
+        .replace(/\$values:.*\n(?:\s+.+\n)*/g, s => `{{#import}}${s}{{/import}}\n`)
+        .replace(/^---/gm, '{{cleanImports}}\n---')
+    
+    const substituteTemplate = Handlebars.compile(templateFile, { noEscape: true })
     
     let schemaDoc = { type: 'object', properties: { name: { type: 'string' }}, required: ['name'], additionalProperties: true }
     if (schema) schemaDoc = JSON.parse(fs.readFileSync(schema, 'utf8'))
@@ -164,6 +213,7 @@ function parseInput(input) {
     for (const item of loadAll(fs.readFileSync(manifest, 'utf8'))) {
         count++
         item.$values = values
+        item.$values.$manifest = manifest
         if (!validate(item)) {
             console.error("\x1b[33m" + `Error occurred on "${item?.name ?? '$[' + (count-1) + ']'}"`)
             console.error(prettify(validate, { data: item }))
@@ -175,8 +225,10 @@ function parseInput(input) {
         for (const substitution of config) promises.push((async () => {
             if (!substitution) return
             if (substitution.$copy) {
-                const files = globSync(substitution.$copy.split(',').map(file => file.trim()))
-                for (const file of files) await copyFileInt(file, substitution.$out)
+                const files = globSync(substitution.$copy.split(',').map(file => file.trim()), {
+                    ...(relativeToManifest && { cwd: path.dirname(manifest) })
+                })
+                for (const file of files) await copyFileInt(resolvePath(file, manifest), substitution.$out)
                 return
             }
     
@@ -188,11 +240,11 @@ function parseInput(input) {
 
             
             let output 
-            if (!enableTemplateBase && !inputCache[substitution.$in]) inputCache[substitution.$in] = load(fs.readFileSync(substitution.$in, 'utf8'))
+            if (!enableTemplateBase && !inputCache[substitution.$in]) inputCache[substitution.$in] = load(fs.readFileSync(resolvePath(substitution.$in, manifest), 'utf8'))
 
             if (enableTemplateBase) {
                 if (!templateBaseCache[substitution.$in]) {
-                    templateBaseCache[substitution.$in] = Handlebars.compile(fs.readFileSync(substitution.$in, 'utf8'), { noEscape: true })
+                    templateBaseCache[substitution.$in] = Handlebars.compile(fs.readFileSync(resolvePath(substitution.$in, manifest), 'utf8'), { noEscape: true })
                 }
 
                 output = mergeDeep(load(templateBaseCache[substitution.$in](item)), cleanup({...substitution}))                
@@ -200,7 +252,7 @@ function parseInput(input) {
                 if (ext === 'json') output = JSON.stringify(output)
                 if (ext === 'xml') throw new Error('Not supported')
             }
-            else if (loadCommand === 'load_xml') output = execSync(`yq -o=${ext} -n '${loadCommand}("${substitution.$in}") * ${JSON.stringify(cleanup({...substitution}))}'`).toString()
+            else if (loadCommand === 'load_xml') output = execSync(`yq -o=${ext} -n '${loadCommand}("${resolvePath(substitution.$in, manifest)}") * ${JSON.stringify(cleanup({...substitution}))}'`).toString()
             else {
                 output = mergeDeep(inputCache[substitution.$in], cleanup({...substitution}))
                 if (ext === 'yaml') output = dump(output)

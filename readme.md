@@ -262,6 +262,72 @@ So while I encourage you to keep your base configurations as clean as possible, 
 
 Even if you enable this flag, I strongly recommend setting up most of your patches in the templates, and use the templating sparingly for values that are used in multiple places.
 
+### Importing Values From Template Files
+
+As described above, you can use the CLI Flags like `-f` and `-v` to import values into `$values`.
+
+However, if you need something a bit more robust, you can import values from within the templates themselves.
+
+To do this, you can use `$values` as a key within the template, and specify where to import the values to.
+
+```yaml
+$in: base/deployment.yaml
+$out: {{name}}/deployment.yaml
+$values: 
+    - env: env.json
+# ...
+```
+
+Would allow you to access `$values.env` in your templates.
+
+You may also specify an object directly,
+
+```yaml
+$in: base/deployment.yaml
+$out: {{name}}/deployment.yaml
+$values: 
+    - env: 
+        - key: {{somethingFromManifest}}
+        - key2: value2
+```
+
+Which would allow you to access `$values.env.key` and `$values.env.key2` in your templates.
+
+You may also import multiple files or values, and they will be merged together, like so:
+
+```yaml
+$in: base/deployment.yaml
+$out: {{name}}/deployment.yaml
+$values:
+    - env: env.json
+    - env: extra-{{name}}.json
+```
+
+If you wish to allow values to be shared across future templates, you can use the `--allowValuesSharing` flag. This will allow values imported inline by one template to be available in future templates for the same manifest item.
+
+
+Additionally, if you'd like to import values directly to the root of `$values`, you can use `'.'` as the key.
+
+```yaml
+$in: base/deployment.yaml
+$out: {{name}}/deployment.yaml
+$values: 
+    - '.': env.json
+```
+
+### Flags 
+
+Flag | Description
+--relativeToManifest | If set, any input files will be resolved relative to the manifest file.
+--enableTemplateBase | If set, templating will be enabled in the base configurations.
+--dry | If set, the output will not be written to the filesystem, and will be printed to the console instead.
+-a, --archive | If set, the output will be written to an archive. The archive format is determined by the file extension.
+--allowValuesSharing | If set, $values imported inline by one template will be available in future templates for the same manifest item.
+-i, --input | The input files to use. This can be a directory or a list of files separated by commas.
+-f | Imports values from a JSON File to be made available in $values. You can specify where to import them to by using the format `key=path.to.value`.
+-v | Imports values directly to $values. You can specify where to import them to by using the format `key=value`.
+
+
 ### Why "Trident"?
 
 A trident is a multi-pronged tool; this tool is designed to give your base configurations multiple prongs, or outputs. It's also a cool word.
