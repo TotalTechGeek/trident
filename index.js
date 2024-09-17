@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env node 
 import { execSync } from 'child_process'
 import { load, loadAll, dump } from 'js-yaml'
 import fs from 'fs'
@@ -7,16 +7,17 @@ import Ajv from 'ajv'
 import { prettify } from 'awesome-ajv-errors'
 import { parseArgs } from 'util'
 import querystring from 'querystring'
-import { mkdir, writeFile, copyFile } from 'fs/promises'
+import { mkdir, writeFile, copyFile, rm } from 'fs/promises'
 import path from 'path'
 import { globSync } from 'glob'
 import archiver from 'archiver'
 import helpers from 'handlebars-helpers'
+import { XMLParser, XMLBuilder } from 'fast-xml-parser'
 
 // This is a workaround to allow the $values to be shared between the import and derived templates
 const ATTACHED = Symbol('attached')
 
-let { input, values, valueFile, archive, enableTemplateBase, dry, allowValuesSharing, relativeToManifest, relativeToTemplate, relative, base } = parseArgs({
+let { input, values, valueFile, archive, enableTemplateBase, dry, allowValuesSharing, relativeToManifest, relativeToTemplate, relative, base, 'enable-exec': enableExec } = parseArgs({
     options: {
         input: { type: 'string', short: 'i', multiple: true },
         values: { type: 'string', short: 'v', multiple: true },
@@ -28,7 +29,8 @@ let { input, values, valueFile, archive, enableTemplateBase, dry, allowValuesSha
         relativeToManifest: { type: 'boolean' },
         relativeToTemplate: { type: 'boolean' },
         relative: { type: 'boolean' },
-        base: { type: 'boolean' }
+        base: { type: 'boolean' },
+        'enable-exec': { type: 'boolean' }
     }
 }).values
 relative = relative || relativeToManifest || relativeToTemplate
@@ -46,6 +48,8 @@ if (!input) throw new Error('No input file specified')
 
 const ajv = new Ajv({ useDefaults: true, allErrors: true })
 helpers({ handlebars: Handlebars })
+
+if (enableExec) Handlebars.registerHelper('exec', (command) => execSync(command).toString().trim())
 Handlebars.registerHelper('min', (...args) => Math.min(...args.slice(0, -1)))
 Handlebars.registerHelper('max', (...args) => Math.max(...args.slice(0, -1)))
 Handlebars.registerHelper('json', ctx => JSON.stringify(ctx))
@@ -97,15 +101,16 @@ function cleanup (substitution) {
 
 let count = 0
 let failed = 0
-let promises = []
 
-let archiverStream 
 const templateBaseCache = {}
 const inputCache = {}
 const archives = {}
+const xmlParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@" })
+const xmlBuilder = new XMLBuilder({ ignoreAttributes: false, attributeNamePrefix: "@", format: true })
 
 function createArchive (archive) {
     if (!archive) return
+    archive = path.resolve(archive)
     if (archives[archive]) return archives[archive]
     const tarOrZip = path.extname(archive) === '.zip' ? 'zip' : 'tar'
     const compressedTar = archive.endsWith('.gz') || archive.endsWith('.tgz')
@@ -182,7 +187,8 @@ async function writeFileInt (file, content, archiverStream) {
         return
     }
 
-    await mkdir(file.split('/').slice(0, -1).join('/'), { recursive: true })
+    const dir = file.split('/').slice(0, -1).join('/')
+    if (dir) await mkdir(dir, { recursive: true })
     await writeFile(file, content)
 }
 
@@ -212,15 +218,20 @@ function resolvePath (file, manifestLocation) {
 }
 
 
-function process (template, manifest, schema = { type: 'object', properties: { name: { type: 'string' }}, required: ['name'], additionalProperties: true }, {
+async function processTemplate (template, manifest, schema = { type: 'object', properties: { name: { type: 'string' }}, required: ['name'], additionalProperties: true }, {
     templateLocation = '.',
     $values = values,
     additional = null,
-    archiverStream = null
+    archiverStream = null,
+    chdir = '.',
+    parallel = false
 } = {}) {
+    templateLocation = path.resolve(templateLocation)
+    chdir = path.resolve(chdir)
     const substituteTemplate = Handlebars.compile(template, { noEscape: true })
     
     const validate = ajv.compile(schema)
+    let promises = []
 
 
     for (let item of manifest) {
@@ -236,8 +247,23 @@ function process (template, manifest, schema = { type: 'object', properties: { n
         }
         
         const config = loadAll(substituteTemplate(item))
-        for (const substitution of config) promises.push((async () => {
+
+        async function executeSubstitution (substitution) {
             if (!substitution) return
+            if (substitution.$mkdir) {
+                if (typeof substitution.$mkdir === 'string') substitution.$mkdir = [substitution.$mkdir]
+                for (const dir of substitution.$mkdir) fs.mkdirSync(resolvePath(dir, templateLocation), { recursive: true })
+            }
+
+            if (substitution.$chdir) {
+                if (!fs.existsSync(resolvePath(substitution.$chdir, templateLocation))) fs.mkdirSync(resolvePath(substitution.$chdir, templateLocation), { recursive: true })
+                process.chdir(resolvePath(substitution.$chdir, templateLocation))
+            }
+
+            if (substitution.$rm) {
+                if (typeof substitution.$rm === 'string') substitution.$rm = [substitution.$rm]
+                for (const dir of substitution.$rm) await rm(resolvePath(dir, templateLocation), { recursive: true, force: true })
+            }
 
             if (substitution.$template && substitution.$manifest) {
                 const location = resolvePath(substitution.$template, templateLocation)
@@ -245,19 +271,47 @@ function process (template, manifest, schema = { type: 'object', properties: { n
                 let manifest = substitution.$manifest
                 if (typeof manifest === 'string') manifest = loadAll(fs.readFileSync(resolvePath(manifest, templateLocation), 'utf8'))
                 const schema = substitution.$schema ? JSON.parse(fs.readFileSync(resolvePath(substitution.$schema, templateLocation), 'utf8')) : undefined
-                return process(template, manifest, schema, {
+                await processTemplate(template, manifest, schema, {
                     templateLocation: location,
                     $values: $values[ATTACHED],
                     additional: { ...item, ...cleanup({...substitution}) },
+                    parallel: true,
                     archiverStream: substitution.$archive ? createArchive(substitution.$archive) : archiverStream
                 })
+                return
             }
 
             if (substitution.$copy) {
-                const files = globSync(substitution.$copy.split(',').map(file => file.trim()), {
+                let $copy = substitution.$copy
+                if ($copy.files) $copy = $copy.files
+                if (typeof $copy === 'string') $copy = $copy.split(',').map(file => file.trim())
+                const files = globSync($copy, {
                     ...(relative && { cwd: path.dirname(templateLocation) })
                 })
                 for (const file of files) await copyFileInt(resolvePath(file, templateLocation), substitution.$out, archiverStream)
+                return
+            }
+
+            if (substitution.$exec) {
+                if (enableExec) execSync(substitution.$exec)
+                else throw new Error('Execution not enabled')
+                return
+            }
+
+            if (substitution.$merge) {
+                let $files = substitution.$merge.files 
+                if (typeof $files === 'string') $files = $files.split(',').map(file => file.trim())
+                let merged = ''
+
+                const archive = createArchive(substitution.$archive) ?? archiverStream
+                for (const file of $files) {
+                    const files = globSync(file, {
+                        ...(relative && { cwd: path.dirname(templateLocation) })
+                    })
+                    // Note: I could add streaming out support for this
+                    for (const file of files) merged += fs.readFileSync(resolvePath(file, templateLocation), 'utf8').toString() + (substitution.$merge.separator ?? '')
+                }
+                await writeFileInt(substitution.$out, replace(merged, substitution.$replace || {}), archive)
                 return
             }
     
@@ -279,18 +333,30 @@ function process (template, manifest, schema = { type: 'object', properties: { n
                 output = mergeDeep(load(templateBaseCache[substitution.$in](item)), cleanup({...substitution}))                
                 if (ext === 'yaml') output = dump(output)
                 if (ext === 'json') output = JSON.stringify(output)
-                if (ext === 'xml') throw new Error('Not supported')
+                if (ext === 'xml') output = xmlBuilder.build(output)
             }
-            else if (loadCommand === 'load_xml') output = execSync(`yq -o=${ext} -n '${loadCommand}("${resolvePath(substitution.$in, templateLocation)}") * ${JSON.stringify(cleanup({...substitution}))}'`).toString()
+            else if (loadCommand === 'load_xml') {
+                output = mergeDeep(xmlParser.parse(fs.readFileSync(resolvePath(substitution.$in, templateLocation), 'utf8')), cleanup({...substitution}))
+                if (ext === 'yaml') output = dump(output)
+                if (ext === 'json') output = JSON.stringify(output)
+                if (ext === 'xml') output = xmlBuilder.build(output)
+            }
             else {
                 output = mergeDeep(structuredClone(inputCache[substitution.$in]), cleanup({...substitution}))
                 if (ext === 'yaml') output = dump(output)
                 if (ext === 'json') output = JSON.stringify(output)
-                if (ext === 'xml') throw new Error('Not supported')
+                if (ext === 'xml') output = xmlBuilder.build(output)
             }
             await writeFileInt(substitution.$out, replace(output, substitution.$replace || {}), archiverStream)
-        })())
+        
+        }
+
+        for (const substitution of config) {
+            if (parallel) promises.push(executeSubstitution(substitution))
+            else await executeSubstitution(substitution)
+        }
     }
+    await Promise.all(promises)
 }
 
 function readTemplate (file) {
@@ -310,17 +376,16 @@ function parseInput(input) {
     const schemaDoc = schema ? JSON.parse(fs.readFileSync(schema, 'utf8')) : undefined
     const manifestData = typeof manifest === 'string' ? loadAll(fs.readFileSync(manifest, 'utf8')) : manifest
 
-    return process(readTemplate(template), manifestData, schemaDoc, {
+    return processTemplate(readTemplate(template), manifestData, schemaDoc, {
         templateLocation: template,
         archiverStream: createArchive(archive)
     })    
 }
 
 let start = Date.now()
-for (const file of input) parseInput(file)
+for (const file of input) await parseInput(file)
 let end = Date.now()
 
-await Promise.all(promises)
 console.log("\x1b[33m" + `Processed ${count} items, ${failed} failed.` + 
     ' Time to emit: ' + (end - start) + 'ms'
     + "\x1b[0m")
