@@ -321,13 +321,14 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
             const ext = path.extname(substitution.$out).substring(1)
             let loadCommand = path.extname(substitution.$in) === '.xml' ? 'load_xml' : 'load'
 
+            substitution.$in = resolvePath(substitution.$in, templateLocation)
             
             let output 
-            if (!enableTemplateBase && !inputCache[substitution.$in]) inputCache[substitution.$in] = load(fs.readFileSync(resolvePath(substitution.$in, templateLocation), 'utf8'))
+            if (!enableTemplateBase && !inputCache[substitution.$in]) inputCache[substitution.$in] = load(fs.readFileSync(substitution.$in, 'utf8'))
 
             if (enableTemplateBase) {
                 if (!templateBaseCache[substitution.$in]) {
-                    templateBaseCache[substitution.$in] = Handlebars.compile(fs.readFileSync(resolvePath(substitution.$in, templateLocation), 'utf8'), { noEscape: true })
+                    templateBaseCache[substitution.$in] = Handlebars.compile(fs.readFileSync(substitution.$in, 'utf8'), { noEscape: true })
                 }
 
                 output = mergeDeep(load(templateBaseCache[substitution.$in](item)), cleanup({...substitution}))                
@@ -336,7 +337,7 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
                 if (ext === 'xml') output = xmlBuilder.build(output)
             }
             else if (loadCommand === 'load_xml') {
-                output = mergeDeep(xmlParser.parse(fs.readFileSync(resolvePath(substitution.$in, templateLocation), 'utf8')), cleanup({...substitution}))
+                output = mergeDeep(xmlParser.parse(fs.readFileSync(substitution.$in, 'utf8')), cleanup({...substitution}))
                 if (ext === 'yaml') output = dump(output)
                 if (ext === 'json') output = JSON.stringify(output)
                 if (ext === 'xml') output = xmlBuilder.build(output)
