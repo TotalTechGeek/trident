@@ -53,6 +53,7 @@ if (enableExec) Handlebars.registerHelper('exec', (command) => execSync(command)
 Handlebars.registerHelper('min', (...args) => Math.min(...args.slice(0, -1)))
 Handlebars.registerHelper('max', (...args) => Math.max(...args.slice(0, -1)))
 Handlebars.registerHelper('json', ctx => JSON.stringify(ctx))
+Handlebars.registerHelper('yaml', ctx => dump(ctx))
 Handlebars.registerHelper('merge', (a, b) => ({ ...a, ...b }))
 Handlebars.registerHelper('default', (a, b) => a ?? b)
 Handlebars.registerHelper('object', (...args) => {
@@ -270,7 +271,7 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
                 const template = readTemplate(location)
                 let manifest = substitution.$manifest
                 if (typeof manifest === 'string') manifest = loadAll(fs.readFileSync(resolvePath(manifest, templateLocation), 'utf8'))
-                const schema = substitution.$schema ? JSON.parse(fs.readFileSync(resolvePath(substitution.$schema, templateLocation), 'utf8')) : undefined
+                const schema = substitution.$schema ? load(fs.readFileSync(resolvePath(substitution.$schema, templateLocation), 'utf8')) : undefined
                 await processTemplate(template, manifest, schema, {
                     templateLocation: location,
                     $values: $values[ATTACHED],
@@ -374,7 +375,7 @@ function parseInput(input) {
     if (!manifest && !base) throw new Error('No manifest file found')
     if (!manifest && base) manifest = [{ name: 'Base' }]
     
-    const schemaDoc = schema ? JSON.parse(fs.readFileSync(schema, 'utf8')) : undefined
+    const schemaDoc = schema ? load(fs.readFileSync(schema, 'utf8')) : undefined
     const manifestData = typeof manifest === 'string' ? loadAll(fs.readFileSync(manifest, 'utf8')) : manifest
 
     return processTemplate(readTemplate(template), manifestData, schemaDoc, {
