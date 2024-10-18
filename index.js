@@ -14,10 +14,12 @@ import archiver from 'archiver'
 import helpers from 'handlebars-helpers'
 import { XMLParser, XMLBuilder } from 'fast-xml-parser'
 
+import { parseExpressions } from './matcher.js'
+
 // This is a workaround to allow the $values to be shared between the import and derived templates
 const ATTACHED = Symbol('attached')
 
-let { input, values, valueFile, archive, enableTemplateBase, dry, allowValuesSharing, relativeToManifest, relativeToTemplate, relative, base, 'enable-exec': enableExec } = parseArgs({
+let { input, values, valueFile, archive, enableTemplateBase, dry, allowValuesSharing, relativeToManifest, relativeToTemplate, relative, base, 'enable-exec': enableExec, match } = parseArgs({
     options: {
         input: { type: 'string', short: 'i', multiple: true },
         values: { type: 'string', short: 'v', multiple: true },
@@ -30,11 +32,15 @@ let { input, values, valueFile, archive, enableTemplateBase, dry, allowValuesSha
         relativeToTemplate: { type: 'boolean' },
         relative: { type: 'boolean' },
         base: { type: 'boolean' },
-        'enable-exec': { type: 'boolean' }
+        'enable-exec': { type: 'boolean' },
+        match: { type: 'string', short: 'm', multiple: true }
     }
 }).values
 relative = relative || relativeToManifest || relativeToTemplate
 values = [...(values || [])].map(value => querystring.parse(value)).reduce((acc, value) => ({ ...acc, ...value }), {})
+
+if (match && base) match.push('name=Base')
+const filter = match ? parseExpressions(match) : () => true
 
 for (let file of valueFile || []) {
     let varName = file 
@@ -236,8 +242,9 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
 
 
     for (let item of manifest) {
-        count++
         if (additional) item = Object.assign({}, additional, item)
+        if (!filter(item)) continue
+        count++
         item.$values = $values
         item.$values.$manifest = templateLocation
         if (!validate(item)) {

@@ -10,7 +10,8 @@
     "glob": "^11.0.0",
     "handlebars": "^4.7.8",
     "handlebars-helpers": "^0.10.0",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.0",
+    "json-logic-engine": "^1.3.7"
   },
   "bin": {
     "trident": "./index.js"
