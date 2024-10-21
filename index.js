@@ -391,10 +391,13 @@ function mergeManifestItems(manifest, templateLocation) {
         let items
 
         if (typeof item === 'string') {
-            if (!fs.existsSync(resolvePath(item, templateLocation))) continue
+            if (!fs.existsSync(resolvePath(item, templateLocation))) {
+                console.warn('Warning could not find: ' + resolvePath(item, templateLocation) + ', skipping.')
+                continue
+            }
             items = loadAll(fs.readFileSync(resolvePath(item, templateLocation), 'utf8'))
         }
-        else items = [item]
+        else items = [structuredClone(item)]
 
         for (const item of items) {
             if (!item.name) throw new Error('Manifest item must have a name')
