@@ -325,6 +325,8 @@ $chdir: output/{{name}}
 
 This will automatically make the directory if it doesn't exist.
 
+**NOTE**: It's not recommended you use this with $in / $out, as you can specify a directory in the $out key; this is useful for changing the output directory in a template that invokes other templates, and setting up something like `$chdir: output` or `$chdir: output/{{name}}` at the root level.
+
 ### Creating Directories
 
 You can create directories by using the `$mkdir` key; you may not always need this, as Trident will automatically create directories for most commands if they don't exist.
