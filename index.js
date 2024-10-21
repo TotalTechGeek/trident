@@ -61,6 +61,14 @@ Handlebars.registerHelper('max', (...args) => Math.max(...args.slice(0, -1)))
 Handlebars.registerHelper('json', ctx => JSON.stringify(ctx))
 Handlebars.registerHelper('yaml', ctx => dump(ctx))
 Handlebars.registerHelper('merge', (a, b) => ({ ...a, ...b }))
+Handlebars.registerHelper('match', (...args) => {
+    // This is like a switch statement
+    // So {{match env "dev" 4 "prod" 5 6}} where env is "prod" will return 5
+    args.pop()
+    const value = args[0]
+    for (let i = 1; i < args.length; i += 2) if (value === args[i]) return args[i+1]
+    return args[args.length - 1]
+})
 Handlebars.registerHelper('default', (a, b) => a ?? b)
 Handlebars.registerHelper('object', (...args) => {
     const obj = {}
@@ -259,11 +267,13 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
         async function executeSubstitution (substitution) {
             if (!substitution) return
             if (substitution.$mkdir) {
+                if (parallel) console.warn('Parallel execution not supported for $mkdir')
                 if (typeof substitution.$mkdir === 'string') substitution.$mkdir = [substitution.$mkdir]
                 for (const dir of substitution.$mkdir) fs.mkdirSync(resolvePath(dir, templateLocation), { recursive: true })
             }
 
             if (substitution.$chdir) {
+                if (parallel) console.warn('Parallel execution not supported for $chdir')
                 if (!fs.existsSync(resolvePath(substitution.$chdir, templateLocation))) fs.mkdirSync(resolvePath(substitution.$chdir, templateLocation), { recursive: true })
                 process.chdir(resolvePath(substitution.$chdir, templateLocation))
             }
@@ -277,7 +287,8 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
                 const location = resolvePath(substitution.$template, templateLocation)
                 const template = readTemplate(location)
                 let manifest = substitution.$manifest
-                if (typeof manifest === 'string') manifest = loadAll(fs.readFileSync(resolvePath(manifest, templateLocation), 'utf8'))
+                if (typeof manifest === 'string') manifest = [manifest]
+                manifest = mergeManifestItems(manifest, templateLocation)
                 const schema = substitution.$schema ? load(fs.readFileSync(resolvePath(substitution.$schema, templateLocation), 'utf8')) : undefined
                 await processTemplate(template, manifest, schema, {
                     templateLocation: location,
@@ -307,6 +318,7 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
             }
 
             if (substitution.$merge) {
+                if (parallel) console.warn('Parallel execution not supported for $merge')
                 let $files = substitution.$merge.files 
                 if (typeof $files === 'string') $files = $files.split(',').map(file => file.trim())
                 let merged = ''
@@ -366,6 +378,36 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
         }
     }
     await Promise.all(promises)
+}
+
+function mergeManifestItems(manifest, templateLocation) {
+    // If the item is an object, it'll be treated as a single item
+    // If the item is a string, it'll be loaded as a manifest file
+    // Then we'll merge the items in the list
+    const dict = {}
+    const arr = []
+
+    for (const item of manifest) {
+        let items
+
+        if (typeof item === 'string') {
+            if (!fs.existsSync(resolvePath(item, templateLocation))) continue
+            items = loadAll(fs.readFileSync(resolvePath(item, templateLocation), 'utf8'))
+        }
+        else items = [item]
+
+        for (const item of items) {
+            if (!item.name) throw new Error('Manifest item must have a name')
+            if (!dict[item.name]) {
+                dict[item.name] = item
+                arr.push(item)
+            }
+            Object.assign(dict[item.name], item)
+        }
+    }
+
+    manifest = arr
+    return manifest
 }
 
 function readTemplate (file) {
