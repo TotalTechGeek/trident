@@ -428,6 +428,48 @@ $schema: services/schema.json
 $manifest: services/manifest.yaml
 ```
 
+### Using Multiple Manifests
+
+As noted above, you can use `$template` to invoke other templates. 
+
+If you pass an array into `$manifest`, Trident will merge the manifests together, and merge properties with the same name.
+
+Conceptually, this is similar to using multiple overlays in Kustomize.
+
+```yaml
+$template: services/template.yaml
+$manifest: 
+  - services/manifest.yaml
+  - services/{{$values.env}}.yaml
+```
+
+Now if I have `services/manifest.yaml` like so:
+```yaml
+name: Users
+env: 
+  HOST: users
+  MODE: prod
+replicas: 3
+---
+name: Orders
+env: 
+  HOST: orders
+  MODE: prod
+replicas: 2
+```
+
+And a file named `services/prod.yaml` like so:
+```yaml
+name: Users
+replicas: 5
+```
+
+I could run Trident with:
+```bash
+trident -i . -v env=prod
+```
+
+And Users would be deployed with 5 replicas, and Orders would be deployed with 2 replicas.
 
 ### Flags 
 
