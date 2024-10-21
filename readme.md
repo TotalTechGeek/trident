@@ -503,7 +503,7 @@ $rm | Removes a file or directory. | string or string[] |
 $merge | Used to merge globs of files together | { files: string[], separator?: string } | $out
 $archive | Allows you to specify an archive to output to. | string | $merge, or $template
 $template | Allows you to call another template from within a template. | string | $manifest
-$manifest | Allows you to specify a different manifest to use. | string or string[] | $template
+$manifest | Allows you to specify a manifest to use. If multiple manifests are passed in, it will merge them. | string or string[] | $template
 $schema | Allows you to specify a schema to use. | string |  $manifest, $template
 
 
