@@ -315,9 +315,116 @@ $values:
     - '.': env.json
 ```
 
+### Changing Output Directory
+
+You can change the output directory for the configuration by using the `$chdir` key inside of a step.
+
+```yaml
+$chdir: output/{{name}}
+```
+
+This will automatically make the directory if it doesn't exist.
+
+### Creating Directories
+
+You can create directories by using the `$mkdir` key; you may not always need this, as Trident will automatically create directories for most commands if they don't exist.
+
+```yaml
+$mkdir: output/{{name}}
+```
+
+Multiple directories can be created by using an array.
+
+```yaml
+$mkdir: 
+    - output/frontend/{{name}}
+    - output/backend/{{name}}
+```
+
+### Removing Files
+
+You can remove files or directories by using the `$rm` key.
+
+```yaml
+$rm: output/{{name}}/deployment.yaml
+```
+
+Multiple files or directories can be removed by using an array.
+
+```yaml
+$rm: 
+    - output/frontend/{{name}}/deployment.yaml
+    - output/backend/{{name}}/deployment.yaml
+```
+
+### Merging Files
+
+You can merge files together by using `$merge`. This is useful for combining multiple files into a single file.
+
+The files can be specified as a glob, and a separator can be specified to separate the files.
+
+```yaml
+$merge:
+    files: 
+        - output/**/deployment.yaml
+        - output/**/service.yaml
+    separator: "---\n"
+$out: output/release.yaml
+```
+
+The files will be appended in the order they are specified, with the separator between each file.
+
 ### Calling Templates From Templates
 
+In Trident, templates are multiplicative. This means that you can call a template from within a template, and values from either the manifest or template can be passed to the called template.
 
+To call a template from within a template, you can use the `$template` key.
+
+```yaml
+$template: services/template.yaml
+$manifest: services/manifest.yaml
+---
+$template: frontend/template.yaml
+$manifest: frontend/manifest.yaml
+```
+
+This would call the `services/template.yaml` with the `services/manifest.yaml` and the `frontend/template.yaml` with the `frontend/manifest.yaml`, allowing you to execute multiple templates in a single run.
+
+Any $values or values from the manifest will be passed to the called template.
+
+```yaml
+$chdir: output/{{name}}
+$manifest: services/manifest.yaml
+$template: services/template.yaml
+$values:
+    - env: {{name}}.json
+type: service
+```
+
+Would allow you to access `$values.env` in the `services/template.yaml`, as well as `{{type}}` in the `services/template.yaml` (this also works with --match).
+
+You might run the above template with the following command:
+
+```bash
+trident -i . --relative
+```
+
+With the manifest being:
+```yaml
+name: Prod
+---
+name: Dev
+```
+
+Allowing you to output two different sets of configurations, one for `Prod` and one for `Dev`.
+
+You may also specify a schema to use for the called template by using the `$schema` key.
+
+```yaml
+$template: services/template.yaml
+$schema: services/schema.json
+$manifest: services/manifest.yaml
+```
 
 
 ### Flags 
@@ -338,7 +445,7 @@ Flag | Description
 
 ### All Template Instructions
 
-Key | Description | Format |  Requires
+Key | Description | Format |  Use With
 -- | -- | -- | --
 $in | The base configuration to use. | string | $out
 $out | The output path for the configuration. | string | $in, $merge, or $copy
