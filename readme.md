@@ -315,6 +315,11 @@ $values:
     - '.': env.json
 ```
 
+### Calling Templates From Templates
+
+
+
+
 ### Flags 
 
 Flag | Description
@@ -328,7 +333,27 @@ Flag | Description
 -f | Imports values from a JSON File to be made available in $values. You can specify where to import them to by using the format `key=path.to.value`.
 -v | Imports values directly to $values. You can specify where to import them to by using the format `key=value`.
 -b, --base | A convenience flag that makes it easier to execute a template file with a default manifest (name: Base). If you're using a template file to call other template files, it might make sense to use this flag.
--m, --match | Allows you to filter which items in the manifest(s) you wish to use. `--match name=users` would only use the item in the manifest with the name `users`, for example. Other operators are supported, `>` / `<` / `<=` / `>=` / `!=` / `~` (regex). You can use `&` to combine multiple filters, like so: `--match name=users&replicas>3`. You can also use `--match` multiple times to specify multiple allowed filters `-m name=frontend -m name=auth` would allow both `frontend` and `auth` to be deployed.
+-m, --match | Allows you to filter which items in the manifest(s) you wish to use. `--match name=users` would only use the item in the manifest with the name `users`, for example. Other operators are supported, `>` / `<` / `<=` / `>=` / `!=` / `~` (regex). You can use `&` to combine multiple filters, like so: `--match "name=users&replicas>3"`. You can also use `--match` multiple times to specify multiple allowed filters `-m name=frontend -m name=auth` would allow both `frontend` and `auth` to be deployed.
+--enable-exec | Allows the execution of the `$exec` key in templates. This is disabled by default for security reasons. Will run a command in the shell.
+
+### All Template Instructions
+
+Key | Description | Format |  Requires
+-- | -- | -- | --
+$in | The base configuration to use. | string | $out
+$out | The output path for the configuration. | string | $in, $merge, or $copy
+$copy | Copies files from one directory to another. | string (glob) | 
+$replace | Replaces literal strings in the base configuration. | object | $in, or $merge
+$values | Imports values from a JSON file to be made available in $values. | object[] | 
+$chdir | Changes the working directory for the output. | string |
+$exec | Executes a command, if `--enable-exec` is run | string |
+$mkdir | Creates a directory. | string or string[] |
+$rm | Removes a file or directory. | string or string[] |
+$merge | Used to merge globs of files together | { files: string[], separator?: string } | $out
+$archive | Allows you to specify an archive to output to. | string | $merge, or $template
+$template | Allows you to call another template from within a template. | string | $manifest
+$manifest | Allows you to specify a different manifest to use. | string or string[] | $template
+$schema | Allows you to specify a schema to use. | string |  $manifest, $template
 
 
 ### Why "Trident"?
