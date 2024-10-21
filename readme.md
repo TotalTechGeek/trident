@@ -319,7 +319,7 @@ $values:
 
 Flag | Description
 -- | --
---relativeToManifest | If set, any input files will be resolved relative to the manifest file.
+--relative | If set, any input files will be resolved relative to the template file.
 --enableTemplateBase | If set, templating will be enabled in the base configurations.
 --dry | If set, the output will not be written to the filesystem, and will be printed to the console instead.
 -a, --archive | If set, the output will be written to an archive. The archive format is determined by the file extension.
@@ -327,6 +327,8 @@ Flag | Description
 -i, --input | The input files to use. This can be a directory or a list of files separated by commas.
 -f | Imports values from a JSON File to be made available in $values. You can specify where to import them to by using the format `key=path.to.value`.
 -v | Imports values directly to $values. You can specify where to import them to by using the format `key=value`.
+-b, --base | A convenience flag that makes it easier to execute a template file with a default manifest (name: Base). If you're using a template file to call other template files, it might make sense to use this flag.
+-m, --match | Allows you to filter which items in the manifest(s) you wish to use. `--match name=users` would only use the item in the manifest with the name `users`, for example. Other operators are supported, `>` / `<` / `<=` / `>=` / `!=` / `~` (regex). You can use `&` to combine multiple filters, like so: `--match name=users&replicas>3`. You can also use `--match` multiple times to specify multiple allowed filters `-m name=frontend -m name=auth` would allow both `frontend` and `auth` to be deployed.
 
 
 ### Why "Trident"?
