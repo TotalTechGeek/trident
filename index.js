@@ -2,22 +2,22 @@
 import { execSync } from 'child_process'
 import { load, loadAll, dump } from 'js-yaml'
 import fs from 'fs'
-import Handlebars from 'handlebars'
 import Ajv from 'ajv'
 import { prettify } from 'awesome-ajv-errors'
 import { parseArgs } from 'util'
 import querystring from 'querystring'
 import { mkdir, writeFile, copyFile, rm } from 'fs/promises'
 import path from 'path'
-import { globSync } from 'glob'
+import glob from 'tiny-glob'
 import archiver from 'archiver'
-import helpers from 'handlebars-helpers'
 import { XMLParser, XMLBuilder } from 'fast-xml-parser'
 
 import { parseExpressions } from './matcher.js'
+import { compile, engine } from './engine.js'
+import { Constants } from "json-logic-engine";
 
 // This is a workaround to allow the $values to be shared between the import and derived templates
-const ATTACHED = Symbol('attached')
+const ATTACHED = Symbol.for('attached')
 
 let { input, values, valueFile, archive, enableTemplateBase, dry, allowValuesSharing, relativeToManifest, relativeToTemplate, relative, base, 'enable-exec': enableExec, match } = parseArgs({
     options: {
@@ -53,66 +53,45 @@ for (let file of valueFile || []) {
 if (!input) throw new Error('No input file specified')
 
 const ajv = new Ajv({ useDefaults: true, allErrors: true })
-helpers({ handlebars: Handlebars })
 
-if (enableExec) Handlebars.registerHelper('exec', (command) => execSync(command).toString().trim())
-Handlebars.registerHelper('min', (...args) => Math.min(...args.slice(0, -1)))
-Handlebars.registerHelper('max', (...args) => Math.max(...args.slice(0, -1)))
-Handlebars.registerHelper('json', ctx => JSON.stringify(ctx))
-Handlebars.registerHelper('yaml', ctx => dump(ctx))
-Handlebars.registerHelper('merge', (a, b) => ({ ...a, ...b }))
-Handlebars.registerHelper('match', (...args) => {
-    // This is like a switch statement
-    // So {{match env "dev" 4 "prod" 5 6}} where env is "prod" will return 5
-    args.pop()
-    const value = args[0]
-    for (let i = 1; i < args.length; i += 2) if (value === args[i]) return args[i+1]
-    return args[args.length - 1]
-})
-Handlebars.registerHelper('default', (a, b) => a ?? b)
-Handlebars.registerHelper('object', (...args) => {
-    const obj = {}
-    for (let i = 0; i < args.length; i += 2) obj[args[i]] = args[i+1]
-    return obj
-})
-Handlebars.registerHelper('pickRegex', (obj, regex) => {
-    const result = {}
-    for (const key in obj) if (key.match(new RegExp(regex))) result[key] = obj[key]
-    return result
-})
-Handlebars.registerHelper('omitRegex', (obj, regex) => {
-    const result = {}
-    for (const key in obj) if (!key.match(new RegExp(regex))) result[key] = obj[key]
-    return result
-})
-Handlebars.registerHelper('or', (...args) => args.slice(0, -1).find(arg => arg))
-Handlebars.registerHelper('import', (options) => {
-    if (!options.data.original) options.data.original = options.data.root.$values
-    options.data.root.$values[ATTACHED] = structuredClone(options.data.original)
-    options.data.root.$values = options.data.root.$values[ATTACHED]
-    const manifest = options.data.root.$values.$manifest
-    let res = load(options.fn(options.data.root))
-    for (const item of res.$values) {
-        for (const key in item) {
-            if (!options.data.root.$values) options.data.root.$values = {}
-            if (!options.data.root.$values[key] && key !== '.') options.data.root.$values[key] = {}
-            const choice = key === '.' ? options.data.root.$values : options.data.root.$values[key]
-            if (typeof item[key] === 'object') Object.assign(choice, item[key])
-            else if (fs.existsSync(resolvePath(item[key], manifest))) Object.assign(choice, load(fs.readFileSync(resolvePath(item[key], manifest), 'utf8')))
-            else console.warn('Warning could not find: ' + item[key] + ', skipping.')
-        }
-    }
-    return ''
-})
-Handlebars.registerHelper('cleanImports', (options) => {
-    if (!allowValuesSharing && options.data.original) options.data.root.$values = options.data.original
-    return ''
+if (enableExec) engine.addMethod('exec', (args) => {
+    if (enableExec) return execSync(args.join(' ')).toString().trim()
+    throw new Error('Execution not enabled')
 })
 
 function cleanup (substitution) {
     for (const key of Object.keys(substitution)) if (key.startsWith('$')) delete substitution[key]
     return substitution
 }
+
+engine.addMethod('cleanImports', (args, ctx) => {
+    if (!allowValuesSharing && ctx[Constants.Override] && ctx[Constants.Override].$values[ATTACHED]) ctx[Constants.Override].$values = ctx[Constants.Override].$values[ATTACHED]
+    return ''
+}, { useContext: true })
+
+
+engine.addMethod('import', (args, ctx) => {
+    const CTX = Constants.Override;
+    const root = ctx[CTX]
+
+    const original = root.$values
+    root.$values[ATTACHED] = structuredClone(original)
+
+    const manifest = root.$values.$manifest
+    let res = load(args[0])
+
+    for (const item of res.$values) {
+        for (const key in item) {
+            if (!root.$values[key] && key !== '.') root.$values[key] = {}
+            const choice = key === '.' ? root.$values : root.$values[key]
+            if (typeof item[key] === 'object') Object.assign(choice, item[key])
+            else if (fs.existsSync(resolvePath(item[key], manifest))) Object.assign(choice, load(fs.readFileSync(resolvePath(item[key], manifest), 'utf8')))
+            else console.warn('Warning could not find: ' + item[key] + ', skipping.')
+        }
+    }
+    return ''
+}, { useContext: true })
+
 
 let count = 0
 let failed = 0
@@ -243,8 +222,7 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
 } = {}) {
     templateLocation = path.resolve(templateLocation)
     chdir = path.resolve(chdir)
-    const substituteTemplate = Handlebars.compile(template, { noEscape: true })
-    
+    const substituteTemplate = compile(template)
     const validate = ajv.compile(schema)
     let promises = []
 
@@ -304,7 +282,7 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
                 let $copy = substitution.$copy
                 if ($copy.files) $copy = $copy.files
                 if (typeof $copy === 'string') $copy = $copy.split(',').map(file => file.trim())
-                const files = globSync($copy, {
+                const files = await glob($copy, {
                     ...(relative && { cwd: path.dirname(templateLocation) })
                 })
                 for (const file of files) await copyFileInt(resolvePath(file, templateLocation), substitution.$out, archiverStream)
@@ -325,7 +303,7 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
 
                 const archive = createArchive(substitution.$archive) ?? archiverStream
                 for (const file of $files) {
-                    const files = globSync(file, {
+                    const files = await glob(file, {
                         ...(relative && { cwd: path.dirname(templateLocation) })
                     })
                     // Note: I could add streaming out support for this
@@ -348,7 +326,7 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
 
             if (enableTemplateBase) {
                 if (!templateBaseCache[substitution.$in]) {
-                    templateBaseCache[substitution.$in] = Handlebars.compile(fs.readFileSync(substitution.$in, 'utf8'), { noEscape: true })
+                    templateBaseCache[substitution.$in] = compile(fs.readFileSync(substitution.$in, 'utf8'))
                 }
 
                 output = mergeDeep(load(templateBaseCache[substitution.$in](item)), cleanup({...substitution}))                
@@ -414,10 +392,10 @@ function mergeManifestItems(manifest, templateLocation) {
 }
 
 function readTemplate (file) {
-    return '{{cleanupImports}}\n' + 
+    return '{{cleanImports true}}\n' + 
         fs.readFileSync(file, 'utf8')
         .replace(/\$values:.*\n(?:\s+.+\n)*/g, s => `{{#import}}${s}{{/import}}\n`)
-        .replace(/^---/gm, '{{cleanImports}}\n---')
+        .replace(/^---/gm, '{{cleanImports true}}\n---')
 }
 
 
