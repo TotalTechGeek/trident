@@ -61,7 +61,6 @@ function cleanup (substitution) {
     return substitution
 }
 
-
 engine.addMethod('import', (args, ctx) => {
     const CTX = Constants.Override;
     const root = ctx[CTX]
@@ -82,6 +81,18 @@ engine.addMethod('import', (args, ctx) => {
     return ''
 }, { useContext: true })
 
+
+function compileSubTemplate (template) {
+    if (template in templateBaseCache) return templateBaseCache[template]
+    if (!fs.existsSync(template)) throw new Error('File not found: ' + template)
+    templateBaseCache[template] = compile(readTemplate(template))
+    return templateBaseCache[template] 
+}
+
+engine.addMethod('use', (args, ctx) => {
+    const file = resolvePath(args[0], ctx[Constants.Override].$values.$manifest)
+    return compileSubTemplate(file)(ctx[Constants.Override])
+}, { useContext: true })
 
 let count = 0
 let failed = 0
@@ -272,10 +283,14 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
                 let $copy = substitution.$copy
                 if ($copy.files) $copy = $copy.files
                 if (typeof $copy === 'string') $copy = $copy.split(',').map(file => file.trim())
-                const files = await glob($copy, {
-                    ...(relative && { cwd: path.dirname(templateLocation) })
-                })
-                for (const file of files) await copyFileInt(resolvePath(file, templateLocation), substitution.$out, archiverStream)
+                
+                for (const file of $copy) {
+                    const files = await glob(file, {
+                        ...(relative && { cwd: path.dirname(templateLocation) })
+                    })
+                    for (const file of files) await copyFileInt(resolvePath(file, templateLocation), substitution.$out, archiverStream)
+                }
+
                 return
             }
 

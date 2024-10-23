@@ -1,13 +1,36 @@
-import { LogicEngine, Constants } from "json-logic-engine";
-import { parse } from './parser.mjs'
+import { LogicEngine } from "json-logic-engine";
+import { parse } from './parser.min.mjs'
 export const engine = new LogicEngine();
 
-Object.prototype.map = function (fn) {
+const HashArg = Symbol.for('HashArg');
+
+function mapFn (fn) {
     return Object.keys(this).map((key) => fn({ '@key': key, this: this[key] }))
 }
-Object.defineProperty(Object.prototype, 'map', { enumerable: false });
 
-engine.methods.each = engine.methods.map
+// We haven't added support for "map" on objects in root JSON Logic,
+// So this is a workaround to allow for "each" to work on objects.
+engine.addMethod('each', {
+    traverse: false,
+    method: (args, ...all) => {
+        args[0] = { '%forceMap': args[0] }
+        return engine.methods.map.method(args, ...all);
+    },
+    deterministic: engine.methods.map.deterministic,
+    useContext: engine.methods.map.useContext
+})
+
+engine.addMethod('%forceMap', (item) => {
+    if (!item) return [];
+    if (Array.isArray(item)) return item;
+    Object.defineProperty(item, 'map', { value: mapFn.bind(item), enumerable: false });
+    return item;
+}, { deterministic: true })
+
+engine.methods.each.compile = (args, buildState) => {
+    args[0] = { '%forceMap': args[0] }
+    return engine.methods.map.compile(args, buildState); 
+}
 
 engine.methods['lt'] = engine.methods['<'];
 engine.methods['lte'] = engine.methods['<='];
@@ -31,19 +54,27 @@ engine.addMethod('uppercase', (args) => args[0].toUpperCase(), { deterministic: 
 engine.addMethod('json', (args) => JSON.stringify(args[0]), { deterministic: true });
 engine.addMethod('truncate', (args) => args[0].substring(0, args[1]), { deterministic: true });
 
+
 engine.addMethod('match', (args) => {
     const value = args[0]
-    for (let i = 1; i < args.length; i += 2) if (value === args[i]) return args[i+1]
-    return args[args.length - 1]
+    const [pArgs, options] = processArgs(args.slice(1))
+    if (options[value]) return options[value]
+    for (let i = 1; i < pArgs.length; i += 2) if (value === pArgs[i]) return pArgs[i+1]
+    return pArgs[pArgs.length - 1]
 }, { deterministic: true });
 
 engine.addMethod('merge', (args) => Object.assign({}, ...args), { deterministic: true });
 
 engine.addMethod('object', (args) => {
-    const obj = {}
-    for (let i = 0; i < args.length; i += 2) obj[args[i]] = args[i+1]
+    const [pArgs, obj] = processArgs(args)
+    for (let i = 0; i < pArgs.length; i += 2) obj[pArgs[i]] = pArgs[i+1]
     return obj
 }, { deterministic: true });
+
+engine.addMethod('indent', ([content, level, char]) => {
+    const indent = (char || ' ').repeat(level)
+    return content.split('\n').map((line, x) => (x === 0 ? '' : indent) + line).join('\n')
+}, { deterministic: true })
 
 engine.addMethod('pickRegex', ([obj, regex]) => {
     const result = {}
@@ -59,4 +90,16 @@ engine.addMethod('omitRegex', ([obj, regex]) => {
 
 export function compile (str) {
     return engine.build(parse(str))
+}
+
+export function processArgs (args) {
+    const rArgs = []
+    const options = {} 
+
+    for (const arg of args) {
+        if (arg && arg[HashArg]) Object.assign(options, arg);
+        else rArgs.push(arg);
+    }
+
+    return [rArgs, options];
 }
