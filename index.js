@@ -16,9 +16,6 @@ import { parseExpressions } from './matcher.js'
 import { compile, engine } from './engine.js'
 import { Constants } from "json-logic-engine";
 
-// This is a workaround to allow the $values to be shared between the import and derived templates
-const ATTACHED = Symbol.for('attached')
-
 let { input, values, valueFile, archive, enableTemplateBase, dry, allowValuesSharing, relativeToManifest, relativeToTemplate, relative, base, 'enable-exec': enableExec, match } = parseArgs({
     options: {
         input: { type: 'string', short: 'i', multiple: true },
@@ -64,19 +61,12 @@ function cleanup (substitution) {
     return substitution
 }
 
-engine.addMethod('cleanImports', (args, ctx) => {
-    if (!allowValuesSharing && ctx[Constants.Override] && ctx[Constants.Override].$values[ATTACHED]) ctx[Constants.Override].$values = ctx[Constants.Override].$values[ATTACHED]
-    return ''
-}, { useContext: true })
-
 
 engine.addMethod('import', (args, ctx) => {
     const CTX = Constants.Override;
     const root = ctx[CTX]
 
-    const original = root.$values
-    root.$values[ATTACHED] = structuredClone(original)
-
+    
     const manifest = root.$values.$manifest
     let res = load(args[0])
 
@@ -231,7 +221,7 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
         if (additional) item = Object.assign({}, additional, item)
         if (!filter(item)) continue
         count++
-        item.$values = $values
+        item.$values = allowValuesSharing ? $values : structuredClone($values)
         item.$values.$manifest = templateLocation
         if (!validate(item)) {
             console.error("\x1b[33m" + `Error occurred on "${item?.name ?? '$[' + (count-1) + ']'}"`)
@@ -270,7 +260,7 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
                 const schema = substitution.$schema ? load(fs.readFileSync(resolvePath(substitution.$schema, templateLocation), 'utf8')) : undefined
                 await processTemplate(template, manifest, schema, {
                     templateLocation: location,
-                    $values: $values[ATTACHED],
+                    $values: item.$values,
                     additional: { ...item, ...cleanup({...substitution}) },
                     parallel: true,
                     archiverStream: substitution.$archive ? createArchive(substitution.$archive) : archiverStream
@@ -392,10 +382,8 @@ function mergeManifestItems(manifest, templateLocation) {
 }
 
 function readTemplate (file) {
-    return '{{cleanImports true}}\n' + 
-        fs.readFileSync(file, 'utf8')
-        .replace(/\$values:.*\n(?:\s+.+\n)*/g, s => `{{#import}}${s}{{/import}}\n`)
-        .replace(/^---/gm, '{{cleanImports true}}\n---')
+    return  fs.readFileSync(file, 'utf8')
+        .replace(/\$values:.*\n(?:\s+.+\n)*/g, s => `{{#import}}${s}{{/import}}\n`)        
 }
 
 

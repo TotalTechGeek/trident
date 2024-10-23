@@ -21,6 +21,7 @@ engine.methods['divide'] = engine.methods['/'];
 engine.methods['add'] = engine.methods['+'];
 engine.methods['subtract'] = engine.methods['-'];
 
+engine.addMethod('log', ([value]) => { console.log(value); return value }, { deterministic: true });
 engine.addMethod('max', (args) => Math.max(...args), { deterministic: true });
 engine.addMethod('min', (args) => Math.min(...args), { deterministic: true });
 
