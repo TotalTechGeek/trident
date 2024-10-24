@@ -64,6 +64,41 @@ engine.addMethod('uppercase', (args) => args[0].toUpperCase(), { deterministic: 
 engine.addMethod('json', (args) => JSON.stringify(args[0]), { deterministic: true });
 engine.addMethod('truncate', (args) => args[0].substring(0, args[1]), { deterministic: true });
 
+engine.addMethod('with', {
+    method: (args, context, above, engine) => {
+        const [rArgs, options] = processArgs(args)
+        const content = rArgs.pop()
+
+        const optionsLength = Object.keys(options).length
+        for (const key in options) options[key] = engine.run(options[key], context, { above })
+        if (rArgs.length) rArgs[0] = engine.run(rArgs[0], context, { above })
+
+        if (optionsLength && rArgs.length) return engine.run(content, { ...options, ...rArgs[0] }, { above: [null, context, ...above] })
+        if (optionsLength) return engine.run(content, options, { above: [null, context, ...above] })
+        if (!rArgs.length) return engine.run(content, {}, { above: [null, context, ...above] })
+
+        return engine.run(content, rArgs[0], { above })
+    },
+    compile: (args, buildState) => {
+        const [rArgs, options] = processArgs(args)
+        const content = rArgs.pop()
+
+        buildState.methods.push(Compiler.build(content, buildState))
+        const position = buildState.methods.length - 1
+        const optionsLength = Object.keys(options).length
+
+        let objectBuild = '   '
+        for (const key in options) objectBuild += `${Compiler.buildString(key, buildState)}: ${Compiler.buildString(options[key], buildState)}, `
+        objectBuild = '{' + objectBuild.slice(0, -2) + '}'
+
+        if (optionsLength && rArgs.length) return `methods[${position}]({ ...(${Compiler.buildString(rArgs[0], buildState)}), ...${objectBuild} })`
+        if (optionsLength) return `methods[${position}](${objectBuild})`
+        if (!rArgs.length) return `methods[${position}]()`
+        return `methods[${position}](${Compiler.buildString(rArgs[0], buildState)})`
+    },
+    traverse: false,
+    deterministic: true
+})
 
 engine.addMethod('match', (args) => {
     const value = args[0]
@@ -103,7 +138,8 @@ export function processArgs (args) {
     const options = {} 
 
     for (const arg of args) {
-        if (arg && arg[HashArg]) Object.assign(options, arg);
+        if (arg && arg.preserve?.[HashArg]) Object.assign(options, arg.preserve);
+        else if (arg && arg[HashArg]) Object.assign(options, arg);
         else rArgs.push(arg);
     }
 
