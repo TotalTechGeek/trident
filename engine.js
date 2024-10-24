@@ -16,6 +16,10 @@ engine.addMethod('each', {
         args[0] = { '%forceMap': args[0] }
         return engine.methods.map.method(args, ...all);
     },
+    compile: (args, buildState) => {
+        args[0] = { '%forceMap': args[0] }
+        return engine.methods.map.compile(args, buildState); 
+    },
     deterministic: engine.methods.map.deterministic,
     useContext: engine.methods.map.useContext
 })
@@ -26,11 +30,6 @@ engine.addMethod('%forceMap', (item) => {
     Object.defineProperty(item, 'map', { value: mapFn.bind(item), enumerable: false });
     return item;
 }, { deterministic: true })
-
-engine.methods.each.compile = (args, buildState) => {
-    args[0] = { '%forceMap': args[0] }
-    return engine.methods.map.compile(args, buildState); 
-}
 
 engine.methods['lt'] = engine.methods['<'];
 engine.methods['lte'] = engine.methods['<='];
