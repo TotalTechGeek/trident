@@ -1,4 +1,4 @@
-import { LogicEngine } from "json-logic-engine";
+import { LogicEngine, Compiler } from "json-logic-engine";
 import { parse } from './parser.min.mjs'
 export const engine = new LogicEngine();
 
@@ -47,7 +47,18 @@ engine.addMethod('log', ([value]) => { console.log(value); return value }, { det
 engine.addMethod('max', (args) => Math.max(...args), { deterministic: true });
 engine.addMethod('min', (args) => Math.min(...args), { deterministic: true });
 
-engine.addMethod('default', (args) => args[0] ?? args[1], { deterministic: true });
+engine.addMethod('default', {
+    method: (args) => args[0] ?? args[1],
+    compile: (args, buildState) => {
+        if (!Array.isArray(args)) return false
+        let res = Compiler.buildString(args[0], buildState)
+        for (let i = 1; i < args.length; i++) res += ' ?? ' + Compiler.buildString(args[i], buildState)
+        return '(' + res + ')';
+    },
+    traverse: true,
+    deterministic: true
+});
+
 engine.addMethod('lowercase', (args) => args[0].toLowerCase(), { deterministic: true });
 engine.addMethod('uppercase', (args) => args[0].toUpperCase(), { deterministic: true });
 engine.addMethod('json', (args) => JSON.stringify(args[0]), { deterministic: true });
@@ -87,10 +98,6 @@ engine.addMethod('omitRegex', ([obj, regex]) => {
     return result
 }, { deterministic: true });
 
-export function compile (str) {
-    return engine.build(parse(str))
-}
-
 export function processArgs (args) {
     const rArgs = []
     const options = {} 
@@ -101,4 +108,9 @@ export function processArgs (args) {
     }
 
     return [rArgs, options];
+}
+
+const preprocessRegex = /(\S.*)\s*\n\s*({{[^{}]*}})\s*\n/g;
+export function compile (str) {
+    return engine.build(parse(str.replace(preprocessRegex, '$1 $2\n')))
 }
