@@ -29,7 +29,6 @@ function each (iterable, func) {
       const iterable = engine.run(data[0], context, above, engine)
       if (!iterable) return ''
       let res = ''
-      res += ''
       if (Array.isArray(iterable)) {
         for (let i = 0; i < iterable.length; i++) {
           res += engine.run(data[1], iterable[i], [{ index: i }, context, ...above], engine)
@@ -45,7 +44,6 @@ function each (iterable, func) {
       const iterable = await engine.run(data[0], context, above, engine)
       if (!iterable) return ''
       let res = ''
-      res += ''
       if (Array.isArray(iterable)) {
         for (let i = 0; i < iterable.length; i++) {
           res += await engine.run(data[1], iterable[i], [{ index: i }, context, ...above], engine)
