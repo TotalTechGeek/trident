@@ -160,7 +160,7 @@ engine.addMethod('with', {
         const check = buildState.engine.methods.if.deterministic
         const [rArgs, options] = processArgs(data)
         const content = rArgs.pop()
-        return check([...Object.values(options), ...rArgs], buildState) && check(content, { ...buildState, insideIterator: true })
+        return check([Object.values(options), rArgs], buildState) && check(content, { ...buildState, insideIterator: true })
     }
 })
 
