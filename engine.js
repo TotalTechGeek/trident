@@ -4,32 +4,90 @@ export const engine = new LogicEngine();
 
 const HashArg = Symbol.for('HashArg');
 
-function mapFn (fn) {
-    return Object.keys(this).map((key) => fn({ '@key': key, this: this[key] }))
-}
-
-// We haven't added support for "map" on objects in root JSON Logic,
-// So this is a workaround to allow for "each" to work on objects.
-engine.addMethod('each', {
+function each (iterable, func) {
+    let res = ''
+    if (Array.isArray(iterable)) {
+      for (let i = 0; i < iterable.length; i++) res += func(iterable[i], i)
+    } else if (typeof iterable === 'object') {
+      for (const key in iterable) res += func(iterable[key], key)
+    }
+    return res
+  }
+  
+  async function eachAsync (iterable, func) {
+    let res = ''
+    if (Array.isArray(iterable)) {
+      for (let i = 0; i < iterable.length; i++) res += await func(iterable[i], i)
+    } else if (typeof iterable === 'object') {
+      for (const key in iterable) res += await func(iterable[key], key)
+    }
+    return res
+  }
+  
+  engine.addMethod('each', {
+    method: (data, context, above, engine) => {
+      const iterable = engine.run(data[0], context, above, engine)
+      if (!iterable) return ''
+      let res = ''
+      res += ''
+      if (Array.isArray(iterable)) {
+        for (let i = 0; i < iterable.length; i++) {
+          res += engine.run(data[1], iterable[i], [{ index: i }, context, ...above], engine)
+        }
+      } else if (typeof iterable === 'object') {
+        for (const key in iterable) {
+          res += engine.run(data[1], iterable[key], [{ index: key }, context, ...above], engine)
+        }
+      }
+      return res
+    },
+    asyncMethod: async (data, context, above, engine) => {
+      const iterable = await engine.run(data[0], context, above, engine)
+      if (!iterable) return ''
+      let res = ''
+      res += ''
+      if (Array.isArray(iterable)) {
+        for (let i = 0; i < iterable.length; i++) {
+          res += await engine.run(data[1], iterable[i], [{ index: i }, context, ...above], engine)
+        }
+      } else if (typeof iterable === 'object') {
+        for (const key in iterable) {
+          res += await engine.run(data[1], iterable[key], [{ index: key }, context, ...above], engine)
+        }
+      }
+      return res
+    },
+    compile: (data, buildState) => {
+      const { above = [], state, async } = buildState
+      let [selector, mapper] = data
+      selector = Compiler.buildString(selector, buildState)
+      const mapState = {
+        ...buildState,
+        state: {},
+        above: [{ item: selector }, state, ...above],
+        avoidInlineAsync: true,
+        iteratorCompile: true
+      }
+      mapper = Compiler.build(mapper, mapState)
+      buildState.useContext = buildState.useContext || mapState.useContext
+      buildState.methods.push(mapper)
+      buildState.methods.each = each
+      buildState.methods.eachAsync = eachAsync
+      if (async) {
+        if (!Constants.isSync(mapper) || selector.includes('await')) {
+          buildState.detectAsync = true
+          return `await methods.eachAsync(${selector} || [], methods[${
+            buildState.methods.length - 1
+          }])`
+        }
+      }
+      return `methods.each(${selector} || [], methods[${
+        buildState.methods.length - 1
+      }])`
+    },
     traverse: false,
-    method: (args, ...all) => {
-        args[0] = { '%forceMap': args[0] }
-        return engine.methods.map.method(args, ...all);
-    },
-    compile: (args, buildState) => {
-        args[0] = { '%forceMap': args[0] }
-        return engine.methods.map.compile(args, buildState); 
-    },
-    deterministic: engine.methods.map.deterministic,
-    useContext: engine.methods.map.useContext
-})
-
-engine.addMethod('%forceMap', (item) => {
-    if (!item) return [];
-    if (Array.isArray(item)) return item;
-    Object.defineProperty(item, 'map', { value: mapFn.bind(item), enumerable: false });
-    return item;
-}, { deterministic: true })
+    deterministic: engine.methods.map.deterministic
+  })
 
 engine.methods['lt'] = engine.methods['<'];
 engine.methods['lte'] = engine.methods['<='];
@@ -63,6 +121,7 @@ engine.addMethod('lowercase', (args) => args[0].toLowerCase(), { deterministic: 
 engine.addMethod('uppercase', (args) => args[0].toUpperCase(), { deterministic: true });
 engine.addMethod('json', (args) => JSON.stringify(args[0]), { deterministic: true });
 engine.addMethod('truncate', (args) => args[0].substring(0, args[1]), { deterministic: true });
+engine.addMethod('arr', (args) => Array.isArray(args) ? args : [args], { deterministic: true });
 
 engine.addMethod('with', {
     method: (args, context, above, engine) => {
@@ -97,7 +156,12 @@ engine.addMethod('with', {
         return `methods[${position}](${Compiler.buildString(rArgs[0], buildState)})`
     },
     traverse: false,
-    deterministic: true
+    deterministic: (data, buildState) => {
+        const check = buildState.engine.methods.if.deterministic
+        const [rArgs, options] = processArgs(data)
+        const content = rArgs.pop()
+        return check([...Object.values(options), ...rArgs], buildState) && check(content, { ...buildState, insideIterator: true })
+    }
 })
 
 engine.addMethod('match', (args) => {
