@@ -11,9 +11,8 @@ import path from 'path'
 import glob from 'tiny-glob'
 import archiver from 'archiver'
 import { XMLParser, XMLBuilder } from 'fast-xml-parser'
-
 import { parseExpressions } from './matcher.js'
-import { compile, engine } from './engine.js'
+import { compile, engine } from 'handlebars-jle'
 import { Constants } from "json-logic-engine";
 
 let { input, values, valueFile, archive, enableTemplateBase, dry, allowValuesSharing, relativeToManifest, relativeToTemplate, relative, base, 'enable-exec': enableExec, match } = parseArgs({
@@ -62,10 +61,8 @@ function cleanup (substitution) {
 }
 
 engine.addMethod('import', (args, ctx) => {
-    const CTX = Constants.Override;
-    const root = ctx[CTX]
+    const root = ctx[Constants.Override]
 
-    
     const manifest = root.$values.$manifest
     let res = load(args[0])
 
@@ -79,7 +76,7 @@ engine.addMethod('import', (args, ctx) => {
         }
     }
     return ''
-}, { useContext: true })
+}, { useContext: true, sync: true })
 
 
 function compileSubTemplate (template) {
@@ -89,10 +86,27 @@ function compileSubTemplate (template) {
     return templateBaseCache[template] 
 }
 
+engine.addMethod('indent', ([content, level, char]) => {
+    const indent = (char || ' ').repeat(level)
+    return content.split('\n').map((line, x) => (x === 0 ? '' : indent) + line).join('\n')
+}, { deterministic: true, sync: true })
+
+engine.addMethod('pickRegex', ([obj, regex]) => {
+    const result = {}
+    for (const key in obj) if (key.match(new RegExp(regex))) result[key] = obj[key]
+    return result
+}, { deterministic: true, sync: true });
+
+engine.addMethod('omitRegex', ([obj, regex]) => {
+    const result = {}
+    for (const key in obj) if (!key.match(new RegExp(regex))) result[key] = obj[key]
+    return result
+}, { deterministic: true, sync: true });
+
 engine.addMethod('use', (args, ctx) => {
     const file = resolvePath(args[0], ctx[Constants.Override].$values.$manifest)
     return compileSubTemplate(file)(ctx[Constants.Override])
-}, { useContext: true })
+}, { useContext: true, sync: true })
 
 let count = 0
 let failed = 0
