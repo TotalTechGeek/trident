@@ -82,7 +82,7 @@ engine.addMethod('import', (args, ctx) => {
 function compileSubTemplate (template) {
     if (template in templateBaseCache) return templateBaseCache[template]
     if (!fs.existsSync(template)) throw new Error('File not found: ' + template)
-    templateBaseCache[template] = compile(readTemplate(template))
+    templateBaseCache[template] = compile(readTemplate(template), { noEscape: true })
     return templateBaseCache[template] 
 }
 
@@ -237,7 +237,7 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
 } = {}) {
     templateLocation = path.resolve(templateLocation)
     chdir = path.resolve(chdir)
-    const substituteTemplate = compile(template)
+    const substituteTemplate = compile(template, { noEscape: true })
     const validate = ajv.compile(schema)
     let promises = []
 
@@ -345,7 +345,7 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
 
             if (enableTemplateBase) {
                 if (!templateBaseCache[substitution.$in]) {
-                    templateBaseCache[substitution.$in] = compile(fs.readFileSync(substitution.$in, 'utf8'))
+                    templateBaseCache[substitution.$in] = compile(fs.readFileSync(substitution.$in, 'utf8'), { noEscape: true })
                 }
 
                 output = mergeDeep(load(templateBaseCache[substitution.$in](item)), cleanup({...substitution}))                
