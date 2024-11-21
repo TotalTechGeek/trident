@@ -310,10 +310,10 @@ graceful-fs@^4.2.0:
   resolved "https://registry.yarnpkg.com/graceful-fs/-/graceful-fs-4.2.11.tgz#4183e4e8bf08bb6e05bbb2f7d2e0c8f712ca40e3"
   integrity sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==
 
-handlebars-jle@^0.0.7:
-  version "0.0.7"
-  resolved "https://registry.yarnpkg.com/handlebars-jle/-/handlebars-jle-0.0.7.tgz#b4ce05e85e3e921d4435accdbb0ec9ebfda21a8a"
-  integrity sha512-anp74av9WncWlEjihIzt92DH3sV2tXlHIKFJoxmOo+b39v4SwOX12d776Twsv0nZSQkm68sLMCZdjKuQZExEqg==
+handlebars-jle@^0.0.10:
+  version "0.0.10"
+  resolved "https://registry.yarnpkg.com/handlebars-jle/-/handlebars-jle-0.0.10.tgz#5ed0bc518f1c72e24e47a4638aac9f8653593ace"
+  integrity sha512-hhYT0EPwH6ljlCh7HZo5AFqNogL/fhs0KeNvK8RRFYT7wKiWUjK8/D/VL6u++69GI6wl36AYAQ/Tzp2eLUBHdw==
   dependencies:
     json-logic-engine "^2.1.2"
 

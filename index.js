@@ -402,7 +402,7 @@ function mergeManifestItems(manifest, templateLocation) {
                 dict[item.name] = item
                 arr.push(item)
             }
-            Object.assign(dict[item.name], item)
+            mergeDeep(dict[item.name], item)
         }
     }
 
