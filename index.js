@@ -13,7 +13,6 @@ import archiver from 'archiver'
 import { XMLParser, XMLBuilder } from 'fast-xml-parser'
 import { parseExpressions } from './matcher.js'
 import { compile, engine } from 'handlebars-jle'
-import { Constants } from "json-logic-engine";
 
 let { input, values, valueFile, archive, enableTemplateBase, dry, allowValuesSharing, relativeToManifest, relativeToTemplate, relative, base, 'enable-exec': enableExec, match } = parseArgs({
     options: {
@@ -61,7 +60,7 @@ function cleanup (substitution) {
 }
 
 engine.addMethod('import', (args, ctx) => {
-    const root = ctx[Constants.Override]
+    const root = ctx
 
     const manifest = root.$values.$manifest
     let res = load(args[0])
@@ -104,8 +103,8 @@ engine.addMethod('omitRegex', ([obj, regex]) => {
 }, { deterministic: true, sync: true });
 
 engine.addMethod('use', (args, ctx) => {
-    const file = resolvePath(args[0], ctx[Constants.Override].$values.$manifest)
-    return compileSubTemplate(file)(ctx[Constants.Override])
+    const file = resolvePath(args[0], ctx.$values.$manifest)
+    return compileSubTemplate(file)(ctx)
 }, { useContext: true, sync: true })
 
 let count = 0
