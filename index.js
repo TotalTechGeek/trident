@@ -439,3 +439,5 @@ console.log("\x1b[33m" + `Processed ${count} items, ${failed} failed.` +
     + "\x1b[0m")
 
 for (const key in archives) archives[key].finalize()
+
+if (failed) process.exit(1)
