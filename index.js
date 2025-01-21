@@ -12,7 +12,9 @@ import glob from 'tiny-glob'
 import archiver from 'archiver'
 import { XMLParser, XMLBuilder } from 'fast-xml-parser'
 import { parseExpressions } from './matcher.js'
-import { compile, engine } from 'handlebars-jle'
+import { Handlebars } from 'handlebars-jle'
+
+const hbs = new Handlebars()
 
 let { input, values, valueFile, archive, enableTemplateBase, dry, allowValuesSharing, relativeToManifest, relativeToTemplate, relative, base, 'enable-exec': enableExec, match } = parseArgs({
     options: {
@@ -49,7 +51,7 @@ if (!input) throw new Error('No input file specified')
 
 const ajv = new Ajv({ useDefaults: true, allErrors: true })
 
-if (enableExec) engine.addMethod('exec', (args) => {
+if (enableExec) hbs.engine.addMethod('exec', (args) => {
     if (enableExec) return execSync(args.join(' ')).toString().trim()
     throw new Error('Execution not enabled')
 })
@@ -59,7 +61,7 @@ function cleanup (substitution) {
     return substitution
 }
 
-engine.addMethod('import', (args, ctx) => {
+hbs.engine.addMethod('import', (args, ctx) => {
     const root = ctx
 
     const manifest = root.$values.$manifest
@@ -81,28 +83,28 @@ engine.addMethod('import', (args, ctx) => {
 function compileSubTemplate (template) {
     if (template in templateBaseCache) return templateBaseCache[template]
     if (!fs.existsSync(template)) throw new Error('File not found: ' + template)
-    templateBaseCache[template] = compile(readTemplate(template), { noEscape: true })
+    templateBaseCache[template] = hbs.compile(readTemplate(template), { noEscape: true })
     return templateBaseCache[template] 
 }
 
-engine.addMethod('indent', ([content, level, char]) => {
+hbs.engine.addMethod('indent', ([content, level, char]) => {
     const indent = (char || ' ').repeat(level)
     return content.split('\n').map((line, x) => (x === 0 ? '' : indent) + line).join('\n')
 }, { deterministic: true, sync: true })
 
-engine.addMethod('pickRegex', ([obj, regex]) => {
+hbs.engine.addMethod('pickRegex', ([obj, regex]) => {
     const result = {}
     for (const key in obj) if (key.match(new RegExp(regex))) result[key] = obj[key]
     return result
 }, { deterministic: true, sync: true });
 
-engine.addMethod('omitRegex', ([obj, regex]) => {
+hbs.engine.addMethod('omitRegex', ([obj, regex]) => {
     const result = {}
     for (const key in obj) if (!key.match(new RegExp(regex))) result[key] = obj[key]
     return result
 }, { deterministic: true, sync: true });
 
-engine.addMethod('use', (args, ctx) => {
+hbs.engine.addMethod('use', (args, ctx) => {
     const file = resolvePath(args[0], ctx.$values.$manifest)
     return compileSubTemplate(file)(ctx)
 }, { useContext: true, sync: true })
@@ -236,7 +238,7 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
 } = {}) {
     templateLocation = path.resolve(templateLocation)
     chdir = path.resolve(chdir)
-    const substituteTemplate = compile(template, { noEscape: true })
+    const substituteTemplate = hbs.compile(template, { noEscape: true })
     const validate = ajv.compile(schema)
     let promises = []
 
@@ -344,7 +346,7 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
 
             if (enableTemplateBase) {
                 if (!templateBaseCache[substitution.$in]) {
-                    templateBaseCache[substitution.$in] = compile(fs.readFileSync(substitution.$in, 'utf8'), { noEscape: true })
+                    templateBaseCache[substitution.$in] = hbs.compile(fs.readFileSync(substitution.$in, 'utf8'), { noEscape: true })
                 }
 
                 output = mergeDeep(load(templateBaseCache[substitution.$in](item)), cleanup({...substitution}))                

@@ -1,15 +1,15 @@
 {
   "name": "trident-template",
-  "version": "0.0.31",
+  "version": "0.0.32",
   "license": "MIT",
   "dependencies": {
     "ajv": "^8.17.1",
     "archiver": "^7.0.1",
     "awesome-ajv-errors": "^5.1.0",
     "fast-xml-parser": "^4.5.0",
-    "handlebars-jle": "^0.0.26",
+    "handlebars-jle": "1.0.2",
     "js-yaml": "^4.1.0",
-    "json-logic-engine": "^4.0.3",
+    "json-logic-engine": "5.0.0-2",
     "tiny-glob": "^0.2.9"
   },
   "bin": {
