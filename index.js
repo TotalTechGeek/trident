@@ -8,11 +8,12 @@ import { parseArgs } from 'util'
 import querystring from 'querystring'
 import { mkdir, writeFile, copyFile, rm } from 'fs/promises'
 import path from 'path'
-import glob from 'tiny-glob'
+import { glob, globSync } from 'tinyglobby'
 import archiver from 'archiver'
 import { XMLParser, XMLBuilder } from 'fast-xml-parser'
 import { parseExpressions } from './matcher.js'
 import { Handlebars } from 'handlebars-jle'
+import { createHash } from 'crypto'
 
 const hbs = new Handlebars()
 
@@ -103,6 +104,56 @@ hbs.engine.addMethod('omitRegex', ([obj, regex]) => {
     for (const key in obj) if (!key.match(new RegExp(regex))) result[key] = obj[key]
     return result
 }, { deterministic: true, sync: true });
+
+
+hbs.engine.addMethod('read_glob', ([pattern, parse], ctx) => {
+    const files = globSync(pattern, {
+        ...(relative && { cwd: path.dirname(ctx.$values.$manifest) }),
+        absolute: true
+    })
+
+    return files.map(file => {
+        const result = {
+            name: path.basename(file, path.extname(file)),
+            path: file,
+            content: fs.readFileSync(file, 'utf8')
+        }
+
+        if (parse) result.content = load(result.content)
+        return result
+    })
+})
+
+hbs.engine.addMethod('hash', ([file]) => {
+    const hash = createHash('sha256')
+    hash.update(fs.readFileSync(file))
+    return hash.digest('hex')
+})
+
+hbs.engine.addMethod('validate', ([item, schema], ctx) => {
+    const validate = ajv.compile(schema)
+    if (!validate(item)) throw new Error('Validation failed: ' + ctx.$values.$manifest + ' - ' + ctx.name + ', ' + JSON.stringify(validate.errors, null, 2))
+    return ''
+})
+
+hbs.engine.addMethod('parse', ([item]) => load(item))
+
+// Allows templates to use ls
+hbs.engine.addMethod('ls', ([pth, directories = false], ctx) => {
+    const files = globSync(pth, {
+        ...(relative && { cwd: path.dirname(ctx.$values.$manifest) }),
+        onlyDirectories: directories,
+        absolute: true        
+    })
+
+    return files
+}, { sync: true })
+
+
+hbs.engine.addMethod('read', ([file], ctx) => {
+    return fs.readFileSync(file, 'utf8')   
+}, { sync: true })
+
 
 hbs.engine.addMethod('use', (args, ctx) => {
     const file = resolvePath(args[0], ctx.$values.$manifest)
