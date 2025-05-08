@@ -446,6 +446,7 @@ function mergeManifestItems(manifest, templateLocation) {
             }
             items = loadAll(fs.readFileSync(resolvePath(item, templateLocation), 'utf8'))
         }
+        else if (Array.isArray(item)) items = structuredClone(item)
         else items = [structuredClone(item)]
 
         for (const item of items) {
