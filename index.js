@@ -62,6 +62,15 @@ function cleanup (substitution) {
     return substitution
 }
 
+// Replace the escaping mechanism for this use-case.
+// Since we're outputting to YAML, 
+// We mainly just need to escape objects and arrays.
+hbs.engine.addMethod('escape', (item) => {
+    if (!item) return item
+    if (typeof item === 'object') return JSON.stringify(item)
+    return item
+}, { optimizeUnary: true, deterministic: true })
+
 hbs.engine.addMethod('import', (args, ctx) => {
     const root = ctx
 
@@ -84,7 +93,7 @@ hbs.engine.addMethod('import', (args, ctx) => {
 function compileSubTemplate (template) {
     if (template in templateBaseCache) return templateBaseCache[template]
     if (!fs.existsSync(template)) throw new Error('File not found: ' + template)
-    templateBaseCache[template] = hbs.compile(readTemplate(template), { noEscape: true })
+    templateBaseCache[template] = hbs.compile(readTemplate(template))
     return templateBaseCache[template] 
 }
 
@@ -106,9 +115,9 @@ hbs.engine.addMethod('omitRegex', ([obj, regex]) => {
 }, { deterministic: true, sync: true });
 
 
-hbs.engine.addMethod('read_glob', ([pattern, parse], ctx) => {
+hbs.engine.addMethod('read_glob', ([pattern, parse], ctx, abv) => {
     const files = globSync(pattern, {
-        ...(relative && { cwd: path.dirname(ctx.$values.$manifest) }),
+        ...(relative && { cwd: path.dirname(getManifestLocation(ctx, abv)) }),
         absolute: true
     })
 
@@ -124,24 +133,25 @@ hbs.engine.addMethod('read_glob', ([pattern, parse], ctx) => {
     })
 })
 
-hbs.engine.addMethod('hash', ([file]) => {
+hbs.engine.addMethod('hash', ([file], ctx, abv) => {
     const hash = createHash('sha256')
-    hash.update(fs.readFileSync(file))
+    hash.update(fs.readFileSync(resolvePath(file, getManifestLocation(ctx, abv))))
     return hash.digest('hex')
 })
 
-hbs.engine.addMethod('validate', ([item, schema], ctx) => {
+hbs.engine.addMethod('validate', ([item, schema], ctx, abv) => {
     const validate = ajv.compile(schema)
-    if (!validate(item)) throw new Error('Validation failed: ' + ctx.$values.$manifest + ' - ' + ctx.name + ', ' + JSON.stringify(validate.errors, null, 2))
+    const manifest = getManifestLocation(ctx, abv)
+    if (!validate(item)) throw new Error('Validation failed: ' + manifest + ' - ' + ctx.name + ', ' + JSON.stringify(validate.errors, null, 2))
     return ''
 })
 
 hbs.engine.addMethod('parse', ([item]) => load(item))
 
 // Allows templates to use ls
-hbs.engine.addMethod('ls', ([pth, directories = false], ctx) => {
+hbs.engine.addMethod('ls', ([pth, directories = false], ctx, abv) => {
     const files = globSync(pth, {
-        ...(relative && { cwd: path.dirname(ctx.$values.$manifest) }),
+        ...(relative && { cwd: path.dirname(getManifestLocation(ctx, abv)) }),
         onlyDirectories: directories,
         absolute: true        
     })
@@ -150,13 +160,13 @@ hbs.engine.addMethod('ls', ([pth, directories = false], ctx) => {
 }, { sync: true })
 
 
-hbs.engine.addMethod('read', ([file], ctx) => {
-    return fs.readFileSync(file, 'utf8')   
+hbs.engine.addMethod('read', ([file], ctx, abv) => {
+    return fs.readFileSync(resolvePath(file, getManifestLocation(ctx, abv)), 'utf8')   
 }, { sync: true })
 
 
-hbs.engine.addMethod('use', (args, ctx) => {
-    const file = resolvePath(args[0], ctx.$values.$manifest)
+hbs.engine.addMethod('use', (args, ctx, abv) => {
+    const file = resolvePath(args[0], getManifestLocation(ctx, abv))
     return compileSubTemplate(file)(ctx)
 }, { useContext: true, sync: true })
 
@@ -269,6 +279,19 @@ async function copyFileInt (file, output, archiverStream) {
     await copyFile(file, (output ? output + '/' : '') + path.basename(file))
 }
 
+/**
+ * Gets the manifest location from context. Simple utility for some of these methods.
+ * @param {*} ctx Context from JSON Logic
+ * @param {*} above Context from outside the iterator
+ */
+function getManifestLocation (ctx, above) {
+    const manifest = ctx.$values && ctx.$values.$manifest
+    if (!manifest) {
+        for (const item of above) if (item.$values?.$manifest) return item.$values.$manifest
+    }
+    return manifest
+}
+
 function resolvePath (file, manifestLocation) {
     if (relative) {
         // get dir of manifest file
@@ -289,7 +312,7 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
 } = {}) {
     templateLocation = path.resolve(templateLocation)
     chdir = path.resolve(chdir)
-    const substituteTemplate = hbs.compile(template, { noEscape: true })
+    const substituteTemplate = hbs.compile(template)
     const validate = ajv.compile(schema)
     let promises = []
 
@@ -397,7 +420,7 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
 
             if (enableTemplateBase) {
                 if (!templateBaseCache[substitution.$in]) {
-                    templateBaseCache[substitution.$in] = hbs.compile(fs.readFileSync(substitution.$in, 'utf8'), { noEscape: true })
+                    templateBaseCache[substitution.$in] = hbs.compile(fs.readFileSync(substitution.$in, 'utf8'))
                 }
 
                 output = mergeDeep(load(templateBaseCache[substitution.$in](item)), cleanup({...substitution}))                
