@@ -505,11 +505,11 @@ And Users would be deployed with 5 replicas, and Orders would be deployed with 2
 ### All Template Instructions
 
 | Key       | Description                                                                                       | Format                                  | Use With                     |
-| --------- | ------------------------------------------------------------------------------------------------- | --------------------------------------- | ---------------------------- | ---- |
+| --------- | ------------------------------------------------------------------------------------------------- | --------------------------------------- | ---------------------------- | 
 | $in       | The base configuration to use.                                                                    | string                                  | $out                         |
 | $out      | The output path for the configuration.                                                            | string                                  | $in, $merge, $text, or $copy |
-| $text     | Outputs templated text to a file.                                                                 | string                                  |                              | $out |
-| $copy     | Copies files from one directory to another.                                                       | string (glob)                           |
+| $text     | Outputs templated text to a file.                                                                 | string                                  | $out
+| $copy     | Copies files from one directory to another.                                                       | string (glob)                           | $out
 | $replace  | Replaces literal strings in the base configuration.                                               | object                                  | $in, $text, or $merge        |
 | $values   | Imports values from a JSON file to be made available in $values.                                  | object[]                                |
 | $chdir    | Changes the working directory for the output.                                                     | string                                  |
