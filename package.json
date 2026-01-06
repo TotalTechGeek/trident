@@ -15,5 +15,11 @@
   "bin": {
     "trident": "./index.js"
   },
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "pineapple": "^0.21.2"
+  },
+  "scripts": {
+    "test": "pineapple -i *.js"
+  }
 }
