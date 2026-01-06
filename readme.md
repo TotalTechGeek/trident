@@ -241,6 +241,17 @@ Trident outputs directly to the filesystem unless the `--dry` flag is specified.
 
 The structure of the output will be determined solely by the `$out` key in the templates.
 
+Any `$` keys at the top level of the template will be stripped from the template for the overlay. To avoid this, you can use `$root` to specify any properties you want to substitute at the root of the template.
+
+```yaml
+$in: base/deployment.yaml # Not overlaid
+$out: {{name}}/deployment.yaml # Not overlaid
+$root:
+  $meta:
+    annotations:
+      generatedBy: trident
+```
+
 ### Supported Formats for Base Configurations
 
 Trident currently supports YAML, JSON and XML for base configurations.
