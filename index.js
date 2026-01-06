@@ -16,22 +16,18 @@ import { createHash } from 'crypto'
 
 const hbs = new Handlebars()
 
-let { input, values, valueFile, enableTemplateBase, dry, allowValuesSharing, base, 'enable-exec': enableExec, match } = parseArgs({
+let { input, values, valueFile, dry, 'enable-exec': enableExec, match } = parseArgs({
     options: {
         input: { type: 'string', short: 'i', multiple: true },
         values: { type: 'string', short: 'v', multiple: true },
         valueFile: { type: 'string', short: 'f', multiple: true },
-        enableTemplateBase: { type: 'boolean' },
         dry: { type: 'boolean' },
-        allowValuesSharing: { type: 'boolean' },
-        base: { type: 'boolean' },
         'enable-exec': { type: 'boolean' },
         match: { type: 'string', short: 'm', multiple: true }
     }
 }).values
 values = [...(values || [])].map(value => querystring.parse(value)).reduce((acc, value) => ({ ...acc, ...value }), {})
 
-if (match && base) match.push('name=Base')
 const filter = match ? parseExpressions(match) : () => true
 
 for (let file of valueFile || []) {
@@ -47,8 +43,8 @@ if (!input) throw new Error('No input file specified')
 const ajv = new Ajv({ useDefaults: true, allErrors: true })
 
 if (enableExec) hbs.engine.addMethod('exec', (args) => {
-    if (enableExec) return execSync(args.join(' ')).toString().trim()
-    throw new Error('Execution not enabled')
+    if (!enableExec) throw new Error('Execution not enabled')
+    return execSync(args.join(' ')).toString().trim()
 })
 
 function cleanup (substitution) {
@@ -96,32 +92,15 @@ hbs.engine.addMethod('indent', ([content, level, char]) => {
     return content.split('\n').map((line, x) => (x === 0 ? '' : indent) + line).join('\n')
 }, { deterministic: true, sync: true })
 
-hbs.engine.addMethod('pickRegex', ([obj, regex]) => {
-    const result = {}
-    for (const key in obj) if (key.match(new RegExp(regex))) result[key] = obj[key]
-    return result
-}, { deterministic: true, sync: true });
-
-hbs.engine.addMethod('omitRegex', ([obj, regex]) => {
-    const result = {}
-    for (const key in obj) if (!key.match(new RegExp(regex))) result[key] = obj[key]
-    return result
-}, { deterministic: true, sync: true });
-
 
 hbs.engine.addMethod('read_glob', ([pattern, parse], ctx, abv) => {
-    const files = globSync(pattern, {
-        cwd: path.dirname(getManifestLocation(ctx, abv)),
-        absolute: true
-    })
-
+    const files = globSync(pattern, { cwd: path.dirname(getManifestLocation(ctx, abv)), absolute: true })
     return files.map(file => {
         const result = {
             name: path.basename(file, path.extname(file)),
             path: file,
             content: fs.readFileSync(file, 'utf8')
         }
-
         if (parse) result.content = load(result.content)
         return result
     })
@@ -144,13 +123,11 @@ hbs.engine.addMethod('parse', ([item]) => load(item))
 
 // Allows templates to use ls
 hbs.engine.addMethod('ls', ([pth, directories = false], ctx, abv) => {
-    const files = globSync(pth, {
+    return globSync(pth, {
         cwd: path.dirname(getManifestLocation(ctx, abv)),
         onlyDirectories: directories,
         absolute: true
     })
-
-    return files
 }, { sync: true })
 
 
@@ -172,15 +149,12 @@ const inputCache = {}
 const xmlParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@" })
 const xmlBuilder = new XMLBuilder({ ignoreAttributes: false, attributeNamePrefix: "@", format: true })
 
-
 function getFiles (input) {
     if (input.includes(',')) return input.split(',')
 
     // check if input is a directory
     if (fs.statSync(input).isDirectory() && fs.existsSync(input + '/template.yaml')) {
-        const result = [input + '/template.yaml']
-        if (fs.existsSync(input + '/manifest.yaml')) result.push(input + '/manifest.yaml')
-        else result.push(null)
+        const result = [input + '/template.yaml', fs.existsSync(input + '/manifest.yaml') ? input + '/manifest.yaml' : [{}]]
         if (fs.existsSync(input + '/schema.json')) result.push(input + '/schema.json')
         return result
     }
@@ -193,9 +167,8 @@ function getFiles (input) {
  * @param item
  * @returns {boolean}
  */
-export function isObject(item) {
-    return (item && typeof item === 'object') || Array.isArray(item);
-  }
+const isObject = item => item && typeof item === 'object'
+
 
   /**
    * Deep merge two objects.
@@ -209,14 +182,9 @@ export function isObject(item) {
     if (isObject(target) && isObject(source)) {
       for (const key in source) {
         if (isObject(source[key])) {
-          if (!target[key]) {
-            if (Array.isArray(source[key])) Object.assign(target, { [key]: [] });
-            else Object.assign(target, { [key]: {} });
-        }
+          if (!target[key]) Object.assign(target, { [key]:  Array.isArray(source[key]) ? [] : {} })
           mergeDeep(target[key], source[key]);
-        } else {
-          Object.assign(target, { [key]: source[key] });
-        }
+        } else Object.assign(target, { [key]: source[key] });
       }
     }
 
@@ -247,7 +215,6 @@ async function copyFileInt (file, output) {
     }
 
     if (output?.trim() === '.') output = ''
-
     if (output) await mkdir(output, { recursive: true })
     await copyFile(file, (output ? output + '/' : '') + path.basename(file))
 }
@@ -259,9 +226,7 @@ async function copyFileInt (file, output) {
  */
 function getManifestLocation (ctx, above) {
     const manifest = ctx.$values && ctx.$values.$manifest
-    if (!manifest) {
-        for (const item of above) if (item.$values?.$manifest) return item.$values.$manifest
-    }
+    if (!manifest) for (const item of above) if (item.$values?.$manifest) return item.$values.$manifest
     return manifest
 }
 
@@ -272,25 +237,18 @@ function resolvePath (file, manifestLocation) {
 }
 
 
-async function processTemplate (template, manifest, schema = { type: 'object', properties: { name: { type: 'string' }}, required: ['name'], additionalProperties: true }, {
-    templateLocation = '.',
-    $values = values,
-    additional = null,
-    chdir = '.',
-    parallel = false
-} = {}) {
+async function processTemplate (template, manifest, schema = { type: 'object', properties: { name: { type: 'string' }}, required: ['name'], additionalProperties: true }, { templateLocation = '.', $values = values, additional = null, chdir = '.', parallel = false } = {}) {
     templateLocation = path.resolve(templateLocation)
     chdir = path.resolve(chdir)
     const substituteTemplate = hbs.compile(template)
     const validate = ajv.compile(schema)
     let promises = []
 
-
     for (let item of manifest) {
         if (additional) item = Object.assign({}, additional, item)
-        if (!filter(item)) continue
+        if (!filter(item) && manifest.name) continue
         count++
-        item.$values = allowValuesSharing ? $values : structuredClone($values)
+        item.$values = structuredClone($values)
         item.$values.$manifest = templateLocation
         if (!validate(item)) {
             console.error("\x1b[33m" + `Error occurred on "${item?.name ?? '$[' + (count-1) + ']'}"`)
@@ -327,32 +285,20 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
                 if (typeof manifest === 'string') manifest = [manifest]
                 manifest = mergeManifestItems(manifest, templateLocation)
                 const schema = substitution.$schema ? load(fs.readFileSync(resolvePath(substitution.$schema, templateLocation), 'utf8')) : undefined
-                await processTemplate(template, manifest, schema, {
-                    templateLocation: location,
-                    $values: item.$values,
-                    additional: { ...item, ...cleanup({...substitution}) },
-                    parallel: true,
-                })
-                return
+                return processTemplate(template, manifest, schema, { templateLocation: location, $values: item.$values, additional: { ...item, ...cleanup({...substitution}) }, parallel: true })
             }
 
             if (substitution.$copy) {
                 let $copy = substitution.$copy
                 if ($copy.files) $copy = $copy.files
                 if (typeof $copy === 'string') $copy = $copy.split(',').map(file => file.trim())
-
-                for (const file of $copy) {
-                    const files = await glob(file, { cwd: path.dirname(templateLocation) })
-                    for (const file of files) await copyFileInt(resolvePath(file, templateLocation), substitution.$out)
-                }
-
+                for (const f1 of $copy) for (const f2 of await glob(f1, { cwd: path.dirname(templateLocation) })) await copyFileInt(resolvePath(f2, templateLocation), substitution.$out)
                 return
             }
 
             if (substitution.$exec) {
-                if (enableExec) execSync(substitution.$exec)
-                else throw new Error('Execution not enabled')
-                return
+                if (!enableExec) throw new Error('Execution not enabled')
+                return execSync(substitution.$exec)
             }
 
             if (substitution.$merge) {
@@ -370,41 +316,24 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
                 return
             }
 
-
-            if (!substitution.$in) return
+            if (!substitution.$out) return
 
             const ext = path.extname(substitution.$out).substring(1)
-            let loadCommand = path.extname(substitution.$in) === '.xml' ? 'load_xml' : 'load'
-
-            substitution.$in = resolvePath(substitution.$in, templateLocation)
+            let loadCommand = path.extname(substitution.$in || '') === '.xml' ? 'load_xml' : 'load'
+            substitution.$in = substitution.$in && resolvePath(substitution.$in, templateLocation)
 
             let output
-            if (!enableTemplateBase && !inputCache[substitution.$in]) inputCache[substitution.$in] = load(fs.readFileSync(substitution.$in, 'utf8'))
+            if (substitution.$in && !inputCache[substitution.$in]) inputCache[substitution.$in] = load(fs.readFileSync(substitution.$in, 'utf8'))
 
-            if (enableTemplateBase) {
-                if (!templateBaseCache[substitution.$in]) {
-                    templateBaseCache[substitution.$in] = hbs.compile(fs.readFileSync(substitution.$in, 'utf8'))
-                }
+            if (!substitution.$in) output = cleanup({...substitution})
+            else if (loadCommand === 'load_xml') output = mergeDeep(xmlParser.parse(fs.readFileSync(substitution.$in, 'utf8')), cleanup({...substitution}))
+            else output = mergeDeep(structuredClone(inputCache[substitution.$in]), cleanup({...substitution}))
 
-                output = mergeDeep(load(templateBaseCache[substitution.$in](item)), cleanup({...substitution}))
-                if (ext === 'yaml') output = dump(output)
-                if (ext === 'json') output = JSON.stringify(output)
-                if (ext === 'xml') output = xmlBuilder.build(output)
-            }
-            else if (loadCommand === 'load_xml') {
-                output = mergeDeep(xmlParser.parse(fs.readFileSync(substitution.$in, 'utf8')), cleanup({...substitution}))
-                if (ext === 'yaml') output = dump(output)
-                if (ext === 'json') output = JSON.stringify(output)
-                if (ext === 'xml') output = xmlBuilder.build(output)
-            }
-            else {
-                output = mergeDeep(structuredClone(inputCache[substitution.$in]), cleanup({...substitution}))
-                if (ext === 'yaml') output = dump(output)
-                if (ext === 'json') output = JSON.stringify(output)
-                if (ext === 'xml') output = xmlBuilder.build(output)
-            }
+            if (ext === 'yaml') output = dump(output)
+            if (ext === 'json') output = JSON.stringify(output)
+            if (ext === 'xml') output = xmlBuilder.build(output)
+
             await writeFileInt(substitution.$out, replace(output, substitution.$replace || {}))
-
         }
 
         for (const substitution of config) {
@@ -424,7 +353,6 @@ function mergeManifestItems(manifest, templateLocation) {
 
     for (const item of manifest) {
         let items
-
         if (typeof item === 'string') {
             if (!fs.existsSync(resolvePath(item, templateLocation))) {
                 console.warn('Warning could not find: ' + resolvePath(item, templateLocation) + ', skipping.')
@@ -432,8 +360,7 @@ function mergeManifestItems(manifest, templateLocation) {
             }
             items = loadAll(fs.readFileSync(resolvePath(item, templateLocation), 'utf8'))
         }
-        else if (Array.isArray(item)) items = structuredClone(item)
-        else items = [structuredClone(item)]
+        else items = Array.isArray(item) ? structuredClone(item) : [structuredClone(item)]
 
         for (const item of items) {
             if (!item.name) throw new Error('Manifest item must have a name')
@@ -450,29 +377,19 @@ function mergeManifestItems(manifest, templateLocation) {
 }
 
 function readTemplate (file) {
-    return  fs.readFileSync(file, 'utf8')
-        .replace(/\$values:.*\n(?:\s+.+\n)*/g, s => `{{#import}}${s}{{/import}}\n`)
+  return fs.readFileSync(file, 'utf8').replace(/\$values:.*\n(?:\s+.+\n)*/g, s => `{{#import}}${s}{{/import}}\n`)
 }
-
 
 function parseInput(input) {
     let [template, manifest, schema] = getFiles(input)
-
-    if (!manifest && !base) throw new Error('No manifest file found')
-    if (!manifest && base) manifest = [{ name: 'Base' }]
-
-    const schemaDoc = schema ? load(fs.readFileSync(schema, 'utf8')) : undefined
-    const manifestData = typeof manifest === 'string' ? loadAll(fs.readFileSync(manifest, 'utf8')) : manifest
-
-    return processTemplate(readTemplate(template), manifestData, schemaDoc, { templateLocation: template })
+    if (typeof manifest === 'object') return processTemplate(readTemplate(template), manifest, { type: 'object' }, { templateLocation: template })
+    return processTemplate(readTemplate(template), loadAll(fs.readFileSync(manifest, 'utf8')), schema ? load(fs.readFileSync(schema, 'utf8')) : undefined, { templateLocation: template })
 }
 
 let start = Date.now()
 for (const file of input) await parseInput(file)
 let end = Date.now()
 
-console.log("\x1b[33m" + `Processed ${count} items, ${failed} failed.` +
-    ' Time to emit: ' + (end - start) + 'ms'
-    + "\x1b[0m")
+console.log("\x1b[33m" + `Processed ${count} items, ${failed} failed.` + ' Time to emit: ' + (end - start) + 'ms' + "\x1b[0m")
 
 if (failed) process.exit(1)

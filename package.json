@@ -4,7 +4,6 @@
   "license": "MIT",
   "dependencies": {
     "ajv": "^8.17.1",
-    "archiver": "^7.0.1",
     "awesome-ajv-errors": "^5.1.0",
     "fast-xml-parser": "^4.5.0",
     "handlebars-jle": "1.0.8",
