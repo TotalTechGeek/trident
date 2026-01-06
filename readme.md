@@ -226,7 +226,7 @@ This will look for a `manifest.yaml`, `template.yaml` and an optional `schema.js
 You can also specify the three files directly, separated by commas, in the following order:
 
 ```bash
-trident -i manifest.yaml,template.yaml,schema.json
+trident -i template.yaml,manifest.yaml,schema.json
 ```
 
 It might be possible that you have multiple templates & manifests, so you can use the `-i` flag multiple times to specify multiple directories.
