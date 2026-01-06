@@ -194,23 +194,14 @@ function replace (str, obj) {
 }
 
 async function writeFileInt (file, content) {
-    if (dry) {
-        console.log('>> ' + file)
-        console.log(content)
-        return
-    }
-
+    if (dry) return console.log('>> ' + file + '\n' + content)
     const dir = file.split('/').slice(0, -1).join('/')
     if (dir) await mkdir(dir, { recursive: true })
     await writeFile(file, content)
 }
 
 async function copyFileInt (file, output) {
-    if (dry) {
-        console.log('>> ' + (output ? output + '/' : '') + path.basename(file))
-        return
-    }
-
+    if (dry) return console.log('>> ' + (output ? output + '/' : '') + path.basename(file))
     if (output?.trim() === '.') output = ''
     if (output) await mkdir(output, { recursive: true })
     await copyFile(file, (output ? output + '/' : '') + path.basename(file))
@@ -295,6 +286,12 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
             if (substitution.$exec) {
                 if (!enableExec) throw new Error('Execution not enabled')
                 return execSync(substitution.$exec)
+            }
+
+            if (substitution.$text) {
+                if (!substitution.$out) return
+                if (typeof substitution.$text === 'object') throw new Error('$text must be a string')
+                return writeFileInt(substitution.$out, replace(substitution.$text, substitution.$replace || {}))
             }
 
             if (substitution.$merge) {

@@ -261,6 +261,27 @@ data:
   ENVIRONMENT: {{environment}}
 ```
 
+### Writing Templated 'Text' Files
+
+Let's say you want to output a configuration that is not YAML, JSON or XML, such as a `.ini` or `.conf` file.
+
+You can use the `$text` key to output templated text files.
+
+```yaml
+$out: {{service}}/app.conf
+$text: >-
+  server {
+      listen {{default port 80}};
+      server_name {{service}}.example.com;
+
+      location / {
+          proxy_pass http://{{service}}:8080;
+      }
+  }
+```
+
+This would output a file named `app.conf` in a directory named after the service, with the templated content.
+
 ### Importing Values From Template Files
 
 As described above, you can use the CLI Flags like `-f` and `-v` to import values into `$values`.
@@ -483,21 +504,22 @@ And Users would be deployed with 5 replicas, and Orders would be deployed with 2
 
 ### All Template Instructions
 
-| Key       | Description                                                                                       | Format                                  | Use With              |
-| --------- | ------------------------------------------------------------------------------------------------- | --------------------------------------- | --------------------- |
-| $in       | The base configuration to use.                                                                    | string                                  | $out                  |
-| $out      | The output path for the configuration.                                                            | string                                  | $in, $merge, or $copy |
+| Key       | Description                                                                                       | Format                                  | Use With                     |
+| --------- | ------------------------------------------------------------------------------------------------- | --------------------------------------- | ---------------------------- | ---- |
+| $in       | The base configuration to use.                                                                    | string                                  | $out                         |
+| $out      | The output path for the configuration.                                                            | string                                  | $in, $merge, $text, or $copy |
+| $text     | Outputs templated text to a file.                                                                 | string                                  |                              | $out |
 | $copy     | Copies files from one directory to another.                                                       | string (glob)                           |
-| $replace  | Replaces literal strings in the base configuration.                                               | object                                  | $in, or $merge        |
+| $replace  | Replaces literal strings in the base configuration.                                               | object                                  | $in, $text, or $merge        |
 | $values   | Imports values from a JSON file to be made available in $values.                                  | object[]                                |
 | $chdir    | Changes the working directory for the output.                                                     | string                                  |
 | $exec     | Executes a command, if `--enable-exec` is run                                                     | string                                  |
 | $mkdir    | Creates a directory.                                                                              | string or string[]                      |
 | $rm       | Removes a file or directory.                                                                      | string or string[]                      |
-| $merge    | Used to merge globs of files together                                                             | { files: string[], separator?: string } | $out                  |
-| $template | Allows you to call another template from within a template.                                       | string                                  | $manifest             |
-| $manifest | Allows you to specify a manifest to use. If multiple manifests are passed in, it will merge them. | string or string[]                      | $template             |
-| $schema   | Allows you to specify a schema to use.                                                            | string                                  | $manifest, $template  |
+| $merge    | Used to merge globs of files together                                                             | { files: string[], separator?: string } | $out                         |
+| $template | Allows you to call another template from within a template.                                       | string                                  | $manifest                    |
+| $manifest | Allows you to specify a manifest to use. If multiple manifests are passed in, it will merge them. | string or string[]                      | $template                    |
+| $schema   | Allows you to specify a schema to use.                                                            | string                                  | $manifest, $template         |
 
 ### Why "Trident"?
 
