@@ -399,7 +399,7 @@ $values:
 type: service
 ```
 
-Would allow you to access `$values.env` in the `services/template.yaml`, as well as `{{type}}` in the `services/template.yaml` (this also works with --match).
+Would allow you to access `$values.env` in the `services/template.yaml`, as well as `{{type}}` in the `services/template.yaml`.
 
 You might run the above template with the following command:
 
