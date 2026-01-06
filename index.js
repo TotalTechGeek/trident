@@ -59,9 +59,7 @@ hbs.engine.addMethod('escape', (item) => {
 }, { optimizeUnary: true, deterministic: true })
 
 hbs.engine.addMethod('import', (args, ctx) => {
-    const root = ctx
-
-    const manifest = root.$values.$template
+    const root = ctx, manifest = root.$values.$template
     let res = load(args[0])
 
     for (const item of res.$values) {
@@ -138,13 +136,10 @@ hbs.engine.addMethod('use', (args, ctx, abv) => {
     return compileSubTemplate(file)(ctx)
 }, { useContext: true, sync: true })
 
-let count = 0
-let failed = 0
+let count = 0, failed = 0, written = 0
 
-const templateBaseCache = {}
-const inputCache = {}
-const xmlParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@" })
-const xmlBuilder = new XMLBuilder({ ignoreAttributes: false, attributeNamePrefix: "@", format: true })
+const templateBaseCache = {}, inputCache = {}
+const xmlParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@" }), xmlBuilder = new XMLBuilder({ ignoreAttributes: false, attributeNamePrefix: "@", format: true })
 
 function getFiles (input) {
     if (input.includes(',')) return input.split(',')
@@ -194,6 +189,7 @@ function replace (str, obj) {
 }
 
 async function writeFileInt (file, content) {
+    written++
     if (dry) return console.log('>> ' + file + '\n' + content)
     const dir = file.split('/').slice(0, -1).join('/')
     if (dir) await mkdir(dir, { recursive: true })
@@ -228,8 +224,7 @@ function resolvePath (file, manifestLocation) {
 async function processTemplate (template, manifest, schema = { type: 'object', properties: { name: { type: 'string' }}, required: ['name'], additionalProperties: true }, { templateLocation = '.', $values = values, additional = null, chdir = '.', parallel = false } = {}) {
     templateLocation = path.resolve(templateLocation)
     chdir = path.resolve(chdir)
-    const substituteTemplate = hbs.compile(template)
-    const validate = ajv.compile(schema)
+    const substituteTemplate = hbs.compile(template), validate = ajv.compile(schema)
     let promises = []
 
     for (let item of manifest) {
@@ -266,8 +261,7 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
             }
 
             if (substitution.$template && substitution.$manifest) {
-                const location = resolvePath(substitution.$template, templateLocation)
-                const template = readTemplate(location)
+                const location = resolvePath(substitution.$template, templateLocation), template = readTemplate(location)
                 let manifest = substitution.$manifest
                 if (typeof manifest === 'string') manifest = [manifest]
                 manifest = mergeManifestItems(manifest, templateLocation)
@@ -295,7 +289,7 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
             }
 
             if (substitution.$merge) {
-                if (dry) return console.log('>> ' + substitution.$out + ' (would be generated from merge)')
+                if (dry) return written++, console.log('>> ' + substitution.$out + ' (would be generated from merge)')
                 if (parallel) console.warn('Parallel execution not supported for $merge')
                 let $files = substitution.$merge.files
                 if (typeof $files === 'string') $files = $files.split(',').map(file => file.trim())
@@ -306,8 +300,7 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
                     // Note: I could add streaming out support for this
                     for (const file of files) merged += fs.readFileSync(resolvePath(file, templateLocation), 'utf8').toString() + (substitution.$merge.separator ?? '')
                 }
-                await writeFileInt(substitution.$out, replace(merged, substitution.$replace || {}))
-                return
+                return writeFileInt(substitution.$out, replace(merged, substitution.$replace || {}))
             }
 
             if (!substitution.$out) return
@@ -342,8 +335,7 @@ function mergeManifestItems(manifest, templateLocation) {
     // If the item is an object, it'll be treated as a single item
     // If the item is a string, it'll be loaded as a manifest file
     // Then we'll merge the items in the list
-    const dict = {}
-    const arr = []
+    const dict = {}, arr = []
 
     for (const item of manifest) {
         let items
@@ -358,10 +350,7 @@ function mergeManifestItems(manifest, templateLocation) {
 
         for (const item of items) {
             if (!item.name) throw new Error('Manifest item must have a name')
-            if (!dict[item.name]) {
-                dict[item.name] = item
-                arr.push(item)
-            }
+            if (!dict[item.name]) arr.push(dict[item.name] = item)
             mergeDeep(dict[item.name], item)
         }
     }
@@ -384,6 +373,6 @@ let start = Date.now()
 for (const file of input) await parseInput(file)
 let end = Date.now()
 
-console.log("\x1b[33m" + `Processed ${count} items, ${failed} failed.` + ' Time to emit: ' + (end - start) + 'ms' + "\x1b[0m")
+console.log("\x1b[33m" + `Processed ${count} items, ${failed} failed. ${written} files emitted.` + ' Time to emit: ' + (end - start) + 'ms' + "\x1b[0m")
 
 if (failed) process.exit(1)
