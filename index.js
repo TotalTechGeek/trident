@@ -44,8 +44,9 @@ if (enableExec) hbs.engine.addMethod('exec', (args) => {
 })
 
 function cleanup (substitution) {
+    const root = substitution.$root
     for (const key of Object.keys(substitution)) if (key.startsWith('$')) delete substitution[key]
-    return substitution
+    return mergeDeep(substitution, root)
 }
 
 // Replace the escaping mechanism for this use-case.
@@ -60,7 +61,7 @@ hbs.engine.addMethod('escape', (item) => {
 hbs.engine.addMethod('import', (args, ctx) => {
     const root = ctx
 
-    const manifest = root.$values.$manifest
+    const manifest = root.$values.$template
     let res = load(args[0])
 
     for (const item of res.$values) {
@@ -90,7 +91,7 @@ hbs.engine.addMethod('indent', ([content, level, char]) => {
 
 
 hbs.engine.addMethod('read_glob', ([pattern, parse], ctx, abv) => {
-    const files = globSync(pattern, { cwd: path.dirname(getManifestLocation(ctx, abv)), absolute: true })
+    const files = globSync(pattern, { cwd: path.dirname(getTemplateLocation(ctx, abv)), absolute: true })
     return files.map(file => {
         const result = {
             name: path.basename(file, path.extname(file)),
@@ -105,14 +106,13 @@ hbs.engine.addMethod('read_glob', ([pattern, parse], ctx, abv) => {
 hbs.engine.addMethod('hash', ([file], ctx, abv) => {
     const hash = createHash('sha256')
     if (dry) return '<dry-run-hash:' + file + '>'
-    hash.update(fs.readFileSync(resolvePath(file, getManifestLocation(ctx, abv))))
+    hash.update(fs.readFileSync(resolvePath(file, getTemplateLocation(ctx, abv))))
     return hash.digest('hex')
 })
 
 hbs.engine.addMethod('validate', ([item, schema], ctx, abv) => {
     const validate = ajv.compile(schema)
-    const manifest = getManifestLocation(ctx, abv)
-    if (!validate(item)) throw new Error('Validation failed: ' + manifest + ' - ' + ctx.name + ', ' + JSON.stringify(validate.errors, null, 2))
+    if (!validate(item)) throw new Error('Validation failed: ' + getTemplateLocation(ctx, abv) + ' - ' + ctx.name + ', ' + JSON.stringify(validate.errors, null, 2))
     return ''
 })
 
@@ -121,7 +121,7 @@ hbs.engine.addMethod('parse', ([item]) => load(item))
 // Allows templates to use ls
 hbs.engine.addMethod('ls', ([pth, directories = false], ctx, abv) => {
     return globSync(pth, {
-        cwd: path.dirname(getManifestLocation(ctx, abv)),
+        cwd: path.dirname(getTemplateLocation(ctx, abv)),
         onlyDirectories: directories,
         absolute: true
     })
@@ -129,12 +129,12 @@ hbs.engine.addMethod('ls', ([pth, directories = false], ctx, abv) => {
 
 
 hbs.engine.addMethod('read', ([file], ctx, abv) => {
-    return fs.readFileSync(resolvePath(file, getManifestLocation(ctx, abv)), 'utf8')
+    return fs.readFileSync(resolvePath(file, getTemplateLocation(ctx, abv)), 'utf8')
 }, { sync: true })
 
 
 hbs.engine.addMethod('use', (args, ctx, abv) => {
-    const file = resolvePath(args[0], getManifestLocation(ctx, abv))
+    const file = resolvePath(args[0], getTemplateLocation(ctx, abv))
     return compileSubTemplate(file)(ctx)
 }, { useContext: true, sync: true })
 
@@ -208,13 +208,13 @@ async function copyFileInt (file, output) {
 }
 
 /**
- * Gets the manifest location from context. Simple utility for some of these methods.
+ * Gets the template location from context. Simple utility for some of these methods.
  * @param {*} ctx Context from JSON Logic
  * @param {*} above Context from outside the iterator
  */
-function getManifestLocation (ctx, above) {
-    const manifest = ctx.$values && ctx.$values.$manifest
-    if (!manifest) for (const item of above) if (item.$values?.$manifest) return item.$values.$manifest
+function getTemplateLocation (ctx, above) {
+    const manifest = ctx.$values && ctx.$values.$template
+    if (!manifest) for (const item of above) if (item.$values?.$template) return item.$values.$template
     return manifest
 }
 
@@ -236,7 +236,7 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
         if (additional) item = Object.assign({}, additional, item)
         count++
         item.$values = structuredClone($values)
-        item.$values.$manifest = templateLocation
+        item.$values.$template = templateLocation
         if (!validate(item)) {
             console.error("\x1b[33m" + `Error occurred on "${item?.name ?? '$[' + (count-1) + ']'}"`)
             console.error(prettify(validate, { data: item }))
