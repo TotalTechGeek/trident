@@ -10,25 +10,21 @@ import { mkdir, writeFile, copyFile, rm } from 'fs/promises'
 import path from 'path'
 import { glob, globSync } from 'tinyglobby'
 import { XMLParser, XMLBuilder } from 'fast-xml-parser'
-import { parseExpressions } from './matcher.js'
 import { Handlebars } from 'handlebars-jle'
 import { createHash } from 'crypto'
 
 const hbs = new Handlebars()
 
-let { input, values, valueFile, dry, 'enable-exec': enableExec, match } = parseArgs({
+let { input, values, valueFile, dry, 'enable-exec': enableExec } = parseArgs({
     options: {
         input: { type: 'string', short: 'i', multiple: true },
         values: { type: 'string', short: 'v', multiple: true },
         valueFile: { type: 'string', short: 'f', multiple: true },
         dry: { type: 'boolean' },
-        'enable-exec': { type: 'boolean' },
-        match: { type: 'string', short: 'm', multiple: true }
+        'enable-exec': { type: 'boolean' }
     }
 }).values
 values = [...(values || [])].map(value => querystring.parse(value)).reduce((acc, value) => ({ ...acc, ...value }), {})
-
-const filter = match ? parseExpressions(match) : () => true
 
 for (let file of valueFile || []) {
     let varName = file
@@ -108,6 +104,7 @@ hbs.engine.addMethod('read_glob', ([pattern, parse], ctx, abv) => {
 
 hbs.engine.addMethod('hash', ([file], ctx, abv) => {
     const hash = createHash('sha256')
+    if (dry) return '<dry-run-hash:' + file + '>'
     hash.update(fs.readFileSync(resolvePath(file, getManifestLocation(ctx, abv))))
     return hash.digest('hex')
 })
@@ -159,7 +156,7 @@ function getFiles (input) {
         return result
     }
 
-    throw new Error('Cannot determine manifest and template files')
+    return [input, [{}]]
 }
 
 /**
@@ -246,7 +243,6 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
 
     for (let item of manifest) {
         if (additional) item = Object.assign({}, additional, item)
-        if (!filter(item) && manifest.name) continue
         count++
         item.$values = structuredClone($values)
         item.$values.$manifest = templateLocation
@@ -302,6 +298,7 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
             }
 
             if (substitution.$merge) {
+                if (dry) return console.log('>> ' + substitution.$out + ' (would be generated from merge)')
                 if (parallel) console.warn('Parallel execution not supported for $merge')
                 let $files = substitution.$merge.files
                 if (typeof $files === 'string') $files = $files.split(',').map(file => file.trim())
