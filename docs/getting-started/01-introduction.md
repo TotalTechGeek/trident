@@ -1,34 +1,62 @@
 # Introduction to Trident
 
-Trident is a **multiplicative templating engine** for generating configuration files. It takes your data, multiplies it through templates, and layers patches on top to produce many output files from minimal input.
+## The Problem Trident Solves
 
-## The Multiplicative Model
+Imagine you're managing 10 microservices. Each one needs:
+- A Kubernetes deployment file
+- A service file
+- A configmap
 
-At its core, Trident performs multiplication:
+That's 30 nearly-identical files. They share the same structure, the same labels, the same resource limits—just with different names and ports.
+
+Now someone says "add a `team` label to every deployment." You open 10 files, make the same edit, hope you don't miss one or introduce a typo. Next week, you add an 11th service and have to create 3 more files from scratch.
+
+This is **configuration sprawl**. The more services you add, the more files you maintain. The more files you maintain, the more they drift apart. The more they drift, the more bugs and inconsistencies creep in.
+
+## The Multiplicative Solution
+
+Trident inverts the problem. Instead of N services × M files = NM things to maintain, you maintain:
+
+1. **One manifest** listing your services and their unique properties
+2. **One template** defining what files each service needs
+
+Trident multiplies them:
 
 ```
 Output Files = Manifests × Templates
 ```
 
-- **Manifests** define your data (services, environments, configurations)
-- **Templates** define what files to generate for each manifest item
-- The result is the **cross product**: every manifest item processed through every template document
+10 services × 3 templates = 30 files, generated from 2 source files.
 
-### A Simple Example
+### What This Buys You
 
-**3 services** × **2 template documents** = **6 output files**
+| Without Trident | With Trident |
+|-----------------|--------------|
+| Add a service → create 3 files manually | Add a service → add 3 lines to manifest |
+| Change a pattern → edit 10+ files | Change a pattern → edit 1 template |
+| Files drift apart over time | All files come from the same source |
+| Copy-paste errors | Generated output is consistent |
 
+## A Minimal Example
+
+**manifest.yaml** — defines 3 services:
 ```yaml
-# manifest.yaml (3 items)
 name: api
+port: 8080
 ---
 name: web
+port: 3000
 ---
 name: worker
+port: 9000
 ```
 
+The `---` separator creates multiple items in one file. Each item is processed independently.
+
+**template.yaml** — defines 2 output files per service:
 ```yaml
-# template.yaml (2 documents)
+# $out tells Trident where to write this file
+# {{name}} is replaced with each service's name
 $out: {{name}}/deployment.yaml
 kind: Deployment
 metadata:
@@ -38,24 +66,26 @@ $out: {{name}}/service.yaml
 kind: Service
 metadata:
   name: {{name}}-svc
+spec:
+  ports:
+    - port: {{port}}
 ```
 
-Result:
+**Result**: 6 files
 ```
-api/deployment.yaml      # api × deployment
-api/service.yaml         # api × service
-web/deployment.yaml      # web × deployment
-web/service.yaml         # web × service
-worker/deployment.yaml   # worker × deployment
-worker/service.yaml      # worker × service
+api/deployment.yaml      api/service.yaml
+web/deployment.yaml      web/service.yaml
+worker/deployment.yaml   worker/service.yaml
 ```
 
-## Layering: Patches on Top
+Each service got both file types. Add a 4th service to the manifest and you'll get 8 files.
 
-After multiplication, Trident applies **patches**. Use a base configuration and overlay your changes:
+## Layering with Base Files
 
+Sometimes your templates share common boilerplate—API versions, standard labels, default settings. You can extract this into a base file and **layer** your template on top using deep merge.
+
+**base/deployment.yaml** — shared structure:
 ```yaml
-# base/deployment.yaml (shared boilerplate)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -65,87 +95,100 @@ spec:
   replicas: 1
 ```
 
+**template.yaml** — patches the base:
 ```yaml
-# template.yaml (patches on top)
-$in: base/deployment.yaml    # Start with base
+# $in tells Trident to start with this base file
+# $out tells Trident where to write the result
+$in: base/deployment.yaml
 $out: {{name}}/deployment.yaml
 metadata:
-  name: {{name}}             # Patch the name
+  name: {{name}}
+  labels:
+    app: {{name}}
 spec:
-  replicas: {{replicas}}     # Patch replicas
+  replicas: {{replicas}}
 ```
 
-The base provides defaults and boilerplate. The template patches in service-specific values. The result is a deep merge.
+The output is a **deep merge**: Trident starts with the base, then recursively merges your template values on top. Keys in your template override keys in the base. Nested objects are merged, not replaced.
+
+**Result for `api`**:
+```yaml
+apiVersion: apps/v1          # from base
+kind: Deployment             # from base
+metadata:
+  name: api                  # from template
+  labels:
+    managed-by: trident      # from base (preserved)
+    app: api                 # from template (added)
+spec:
+  replicas: 3                # from template (overrode base's 1)
+```
+
+This keeps your templates focused on what's unique to each service, while the base handles the boilerplate.
 
 ## Merging Multiple Manifests
 
-Manifests can be **merged** by name. This lets you define base configurations and environment-specific overrides:
+You can also merge manifests together. This is useful for environment-specific overrides:
 
+**base.yaml** — defaults:
 ```yaml
-# base-manifest.yaml
 name: api
 replicas: 1
-resources:
-  cpu: 100m
 ---
 name: web
 replicas: 1
-resources:
-  cpu: 100m
 ```
 
+**prod.yaml** — production overrides:
 ```yaml
-# prod-overrides.yaml
 name: api
-replicas: 5           # Override for prod
-resources:
-  cpu: 500m           # Override for prod
----
-name: web
-replicas: 3           # Override for prod
+replicas: 10
 ```
 
-When you specify multiple manifests, items with the same `name` are deep merged:
+When you specify both manifests, items with the same `name` are deep merged:
 
 ```yaml
-$template: deploy/template.yaml
+$template: deploy.yaml
 $manifest:
-  - base-manifest.yaml
-  - prod-overrides.yaml
+  - base.yaml
+  - prod.yaml
 ```
 
-Result for `api`: `replicas: 5`, `cpu: 500m` (overrides win)
-Result for `web`: `replicas: 3`, `cpu: 100m` (partial override)
+The `api` service ends up with `replicas: 10` (from prod), while `web` keeps `replicas: 1` (no override).
 
-## Why Multiplicative?
+## What is Deep Merge?
 
-This model is powerful because:
+Deep merge is how Trident combines objects:
 
-1. **DRY (Don't Repeat Yourself)** - Define each service once, generate all its files
-2. **Consistency** - All services get the same template treatment
-3. **Scalability** - Add a service to the manifest, get all its files automatically
-4. **Flexibility** - Override specific values per environment without duplication
+```yaml
+# Object A              # Object B              # Result (A deep-merged with B)
+metadata:               metadata:               metadata:
+  name: foo               name: bar               name: bar        # B wins
+  labels:                 labels:                 labels:
+    team: backend           app: api                team: backend  # from A
+                                                    app: api       # from B
+spec:                   spec:                   spec:
+  replicas: 1             replicas: 5             replicas: 5      # B wins
+  resources:                                      resources:
+    cpu: 100m                                       cpu: 100m      # from A
+```
 
-## Comparison with Other Tools
+The rules:
+- **Objects are merged recursively** — nested keys from both sides are preserved
+- **Conflicting keys** — the later value (B) wins
+- **Arrays are replaced** — not concatenated (use helpers if you need to merge arrays)
 
-| Feature | Trident | Helm | Kustomize |
-|---------|---------|------|-----------|
-| Templating | Yes (Handlebars) | Yes (Go templates) | No |
-| Patching/Overlay | Yes | No | Yes |
-| Multiplicative | Yes | Limited | No |
-| Manifest Merging | Yes | No | Yes (overlays) |
-| Kubernetes-specific | No | Yes | Yes |
+## Key Concepts Summary
 
-## Key Features
-
-- **Multiplicative output** - Manifests × Templates = Many files
-- **Deep merge patching** - Layer templates over base configurations
-- **Manifest merging** - Combine multiple manifests by name
-- **Multi-format support** - YAML, JSON, XML, and plain text output
-- **Schema validation** - Validate inputs and apply defaults with JSON Schema
-- **Nested templates** - Templates can invoke other templates (nested multiplication)
-- **Dynamic discovery** - Use globs to discover manifest items from files
+| Concept | What it does |
+|---------|--------------|
+| **Manifest** | Lists your data items (services, configs, etc.) |
+| **Template** | Defines what files to generate per item |
+| **`$out`** | Where to write the output file |
+| **`$in`** | Base file to merge with (optional) |
+| **Deep merge** | Recursively combines objects, later values win |
+| **Multiplication** | Every manifest item × every template document |
 
 ## Next Steps
 
-Ready to try it? Head to the [Quick Start](./02-quick-start.md) guide.
+Ready to try it? Continue to the [Quick Start](./02-quick-start.md) guide.

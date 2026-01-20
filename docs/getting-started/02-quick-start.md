@@ -1,30 +1,26 @@
 # Quick Start
 
-This guide demonstrates Trident's multiplicative model in under 5 minutes.
+Build a working Trident project in 5 minutes.
 
-## Installation
+## Install Trident
 
 ```bash
 npm install -g trident-template
 ```
 
-## Your First Multiplicative Template
-
-Let's create a project that generates configuration files for multiple services.
-
-### Step 1: Create the Project
+## Step 1: Create a Project
 
 ```bash
-mkdir my-trident-project
-cd my-trident-project
+mkdir my-configs
+cd my-configs
 ```
 
-### Step 2: Create a Manifest
+## Step 2: Define Your Data (Manifest)
 
-The manifest defines your data. Each document (separated by `---`) is one item:
+Create `manifest.yaml` with your services:
 
 ```yaml
-# manifest.yaml
+# Each document (separated by ---) is one item to process
 name: api
 port: 8080
 replicas: 3
@@ -37,118 +33,145 @@ name: worker
 replicas: 5
 ```
 
-You now have **3 manifest items**.
+You now have 3 services defined. Each has different properties—the `worker` doesn't even have a `port`.
 
-### Step 3: Create a Template
+## Step 3: Define Your Output (Template)
 
-The template defines what files to generate. Each document produces one file per manifest item:
+Create `template.yaml` to specify what files to generate:
 
 ```yaml
-# template.yaml
-$out: {{name}}/config.yaml
-service:
+# $out: the output path ({{name}} is replaced per service)
+$out: {{name}}/deployment.yaml
+kind: Deployment
+metadata:
   name: {{name}}
-  port: {{port}}
+spec:
   replicas: {{replicas}}
 ---
-$out: {{name}}/metadata.json
-name: {{name}}
-type: microservice
+# Second document = second file type per service
+$out: {{name}}/service.yaml
+kind: Service
+metadata:
+  name: {{name}}-svc
+spec:
+  ports:
+    - port: {{port}}
 ```
 
-You now have **2 template documents**.
+Each `---` separator creates another output file per manifest item.
 
-### Step 4: Run Trident
+## Step 4: Generate
 
 ```bash
 trident -i .
 ```
 
-### Step 5: See the Multiplication
-
-**3 manifests × 2 templates = 6 files**
+## Step 5: See the Results
 
 ```
-my-trident-project/
+my-configs/
 ├── api/
-│   ├── config.yaml
-│   └── metadata.json
+│   ├── deployment.yaml
+│   └── service.yaml
 ├── web/
-│   ├── config.yaml
-│   └── metadata.json
+│   ├── deployment.yaml
+│   └── service.yaml
 ├── worker/
-│   ├── config.yaml
-│   └── metadata.json
+│   ├── deployment.yaml
+│   └── service.yaml
 ├── manifest.yaml
 └── template.yaml
 ```
 
-Each service got both files. Add a 4th service to the manifest and you'll get 8 files.
+**3 services × 2 template documents = 6 files**
 
-## Adding Patches with Base Configurations (Optional)
+Add a 4th service to the manifest → get 8 files. Change the template → all 6 files update.
 
-The examples above use `$out` on its own, which is often all you need. But when you have shared boilerplate, you can optionally use `$in` to layer patches on top of a base configuration.
+## Preview Mode
 
-### Create a Base Configuration
+See what would be generated without writing files:
+
+```bash
+trident -i . --dry
+```
+
+Output:
+```
+>> api/deployment.yaml
+kind: Deployment
+metadata:
+  name: api
+spec:
+  replicas: 3
+
+>> api/service.yaml
+...
+```
+
+## Adding a Base Configuration (Optional)
+
+When templates share common boilerplate, extract it to a base file.
+
+Create `base/deployment.yaml`:
 
 ```yaml
-# base/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
     managed-by: trident
-    tier: backend
 spec:
   replicas: 1
   selector:
     matchLabels: {}
 ```
 
-### Update Your Template to Patch It
+Update `template.yaml` to use it:
 
 ```yaml
-# template.yaml
-$in: base/deployment.yaml      # Start with base
+# $in: start with this base file
+# $out: write the merged result here
+$in: base/deployment.yaml
 $out: {{name}}/deployment.yaml
 metadata:
-  name: {{name}}               # Patch in the name
+  name: {{name}}
   labels:
-    app: {{name}}              # Add a label
+    app: {{name}}
 spec:
-  replicas: {{replicas}}       # Patch replicas
+  replicas: {{replicas}}
   selector:
     matchLabels:
       app: {{name}}
 ```
 
-The output is a **deep merge**: base values + template patches.
+Trident **deep merges** the base with your template:
+- The base provides `apiVersion`, `kind`, and default labels
+- Your template patches in service-specific values
+- Nested objects merge together (both label sets are preserved)
+- Your values override the base when they conflict (`replicas`)
 
+**Result** (`api/deployment.yaml`):
 ```yaml
-# api/deployment.yaml (result)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: api
   labels:
-    managed-by: trident    # From base
-    tier: backend          # From base
-    app: api               # From template
+    managed-by: trident    # from base
+    app: api               # from template
 spec:
-  replicas: 3              # From template (was 1 in base)
+  replicas: 3              # from template (base had 1)
   selector:
     matchLabels:
       app: api
 ```
 
-## Merging Multiple Manifests
+## Merging Multiple Manifests (Optional)
 
-You can merge manifests by name to handle environment-specific overrides.
+Override specific values per environment by merging manifests.
 
-### Create a Base Manifest
-
+Create `manifest.yaml` (defaults):
 ```yaml
-# manifest.yaml
 name: api
 replicas: 1
 ---
@@ -156,10 +179,8 @@ name: web
 replicas: 1
 ```
 
-### Create Environment Overrides
-
+Create `prod-overrides.yaml`:
 ```yaml
-# prod-overrides.yaml
 name: api
 replicas: 10
 ---
@@ -167,46 +188,26 @@ name: web
 replicas: 5
 ```
 
-### Use Both in Your Template
-
+Reference both in your template:
 ```yaml
-# template.yaml
+# $manifest can be a list - items with the same name are merged
 $template: deploy.yaml
 $manifest:
   - manifest.yaml
   - prod-overrides.yaml
 ```
 
-Items with the same `name` are merged. The `api` service gets `replicas: 10` (from override).
+Items with the same `name` are deep merged. The `api` service gets `replicas: 10`.
 
-## Dry Run Mode
+## Passing Values from CLI
 
-Preview what would be generated without writing files:
-
-```bash
-trident -i . --dry
-```
-
-Output shows each file that would be created:
-```
->> api/deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-...
-
->> web/deployment.yaml
-...
-```
-
-## Passing Values via CLI
-
-Pass values available to all manifest items:
+Inject values available to all templates:
 
 ```bash
 trident -i . -v environment=production -v region=us-west-2
 ```
 
-Access in templates via `$values`:
+Access them via `$values`:
 
 ```yaml
 $out: {{name}}/config.yaml
@@ -214,18 +215,20 @@ environment: {{$values.environment}}
 region: {{$values.region}}
 ```
 
-## Summary
+## What You've Learned
 
-| Concept | What it does |
-|---------|--------------|
-| **Manifests** | Define your data (services, configs, etc.) |
-| **Templates** | Define what files to generate |
-| **Multiplication** | Each manifest item × each template document |
-| **Patches** | Optionally layer template values over base configurations |
-| **Merging** | Combine multiple manifests by name |
+| Concept | Purpose |
+|---------|---------|
+| **Manifest** | Your data—services, configs, items to process |
+| **Template** | Output rules—what files to generate per item |
+| **`$out`** | Where to write each file |
+| **`$in`** | Base file to merge with (optional) |
+| **Deep merge** | Combines base + template, preserving nested structure |
+| **Manifest merging** | Combine multiple manifests for overrides |
+| **`$values`** | Access CLI-provided values |
 
 ## Next Steps
 
-- Understand [Core Concepts](./03-core-concepts.md) in depth
-- Learn about [Schema Validation](../guides/02-schema-validation.md) for defaults
-- See [Multi-Environment Recipe](../recipes/02-multi-environment.md) for real-world patterns
+- [Core Concepts](./03-core-concepts.md) — deeper dive into multiplication and merging
+- [Schema Validation](../guides/02-schema-validation.md) — validate inputs and set defaults
+- [Multi-Environment Recipe](../recipes/02-multi-environment.md) — real-world patterns

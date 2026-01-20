@@ -1,18 +1,19 @@
 # Core Concepts
 
-Understanding Trident's multiplicative model and layering system.
+A deeper look at Trident's multiplicative model and how its pieces fit together.
 
-## The Multiplication Formula
+## Why Multiplication?
 
-Trident generates output through multiplication:
+Traditional templating works like this: one input → one output. You run a template, you get a file. Need 10 files? Run it 10 times with different inputs.
 
-```
-Output Files = Manifests × Template Documents
-```
+Trident works differently: N inputs × M templates → N×M outputs, in one pass.
 
-Every manifest item is processed through every template document. This cross product is what makes Trident powerful.
+This matters because configuration often has this shape:
+- You have **things** (services, environments, users)
+- Each thing needs the **same kinds of files** (deployment, service, config)
+- The files are structurally identical but with different values
 
-### Visualizing the Multiplication
+Multiplication captures this naturally. Instead of scripting loops or copy-pasting, you describe *what* you have and *what each thing needs*, and Trident generates the cross-product.
 
 ```
 Manifests:           Templates:              Output:
@@ -30,9 +31,9 @@ Manifests:           Templates:              Output:
 3 items      ×      2 documents    =   6 files
 ```
 
-## Manifests: Your Data
+## Manifests: Describing What You Have
 
-A manifest is a multi-document YAML file. Each document is one item to process:
+A manifest is a multi-document YAML file. Each document (separated by `---`) is one item:
 
 ```yaml
 # manifest.yaml
@@ -52,117 +53,102 @@ team: platform
 ```
 
 **Key points:**
-- Each `---` separator creates a new manifest item
-- Items can have any structure
-- By default, each item needs a `name` field
+- Each `---` creates a new item
+- Items can have any structure—use what your templates need
+- By default, each item needs a `name` field (used for merging)
+- Items don't need identical fields (`worker` has no `port`)
 
-## Templates: Your Output Rules
+Manifests answer: "What things exist and what are their properties?"
 
-Templates define what files to generate. Each document (separated by `---`) is one output rule:
+## Templates: Describing What to Generate
+
+Templates define output files. Each document produces one file per manifest item:
 
 ```yaml
 # template.yaml
-$out: {{name}}/deployment.yaml
-kind: Deployment
-metadata:
+
+# $out: where to write this file
+# Handlebars syntax {{...}} pulls values from the manifest item
+$out: {{name}}/config.yaml
+service:
   name: {{name}}
-spec:
+  port: {{port}}
   replicas: {{replicas}}
 ---
-$out: {{name}}/service.yaml
-kind: Service
-metadata:
-  name: {{name}}-svc
-spec:
-  ports:
-    - port: {{port}}
+# Second document = second file per item
+$out: {{name}}/metadata.json
+name: {{name}}
+team: {{team}}
 ```
 
 **Key points:**
-- `$out` specifies the output file path (the only required directive)
-- `$out` can be used on its own—`$in` is optional
-- Handlebars `{{...}}` interpolates manifest values
-- Each document produces one file per manifest item
+- `$out` specifies the output path (required)
+- `$out` works on its own—no base file needed
+- Handlebars `{{...}}` interpolates values from manifest items
+- Each `---` creates another output file per item
+- Output format is determined by extension (`.yaml`, `.json`, `.xml`)
 
-## Patches: Layering with Base Configurations
+Templates answer: "What files does each thing need?"
 
-When you need to share common boilerplate across templates, you can optionally use `$in` to layer template values over a base configuration using deep merge. This is entirely optional—many use cases work fine with just `$out`.
+## Base Files and Deep Merge
 
-### Without Patches (Pure Template)
-
-```yaml
-$out: {{name}}/deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{name}}
-# ... you repeat all the boilerplate
-```
-
-### With Patches (Base + Overlay)
+When templates share common structure, you can use `$in` to start with a base file:
 
 ```yaml
-# base/deployment.yaml
+# base/deployment.yaml — shared boilerplate
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
     managed-by: trident
+    tier: backend
 spec:
   replicas: 1
-  template:
-    spec:
-      containers: []
 ```
 
 ```yaml
-# template.yaml
-$in: base/deployment.yaml    # Start with base
+# template.yaml — patches the base
+$in: base/deployment.yaml
 $out: {{name}}/deployment.yaml
 metadata:
-  name: {{name}}             # Patch
+  name: {{name}}
+  labels:
+    app: {{name}}
 spec:
-  replicas: {{replicas}}     # Patch
+  replicas: {{replicas}}
 ```
 
-**Result:** Deep merge of base + template patches.
+Trident performs a **deep merge**: it recursively combines the base and template objects.
 
 ### How Deep Merge Works
 
-```yaml
-# Base                          # Template Patch
-metadata:                       metadata:
-  labels:                         name: api        # Added
-    managed-by: trident           labels:
-spec:                               app: api       # Added
-  replicas: 1                   spec:
-                                  replicas: 3      # Overwritten
-
-# Result (merged)
-metadata:
-  name: api                     # From patch
-  labels:
-    managed-by: trident         # From base (preserved)
-    app: api                    # From patch (added)
-spec:
-  replicas: 3                   # From patch (overwrote base)
 ```
+Base:                          Template:                     Result:
+apiVersion: apps/v1            (not specified)         →     apiVersion: apps/v1
+kind: Deployment               (not specified)         →     kind: Deployment
+metadata:                      metadata:                     metadata:
+  labels:                        name: api             →       name: api
+    managed-by: trident          labels:                      labels:
+    tier: backend                  app: api            →         managed-by: trident
+                                                                 tier: backend
+                                                                 app: api
+spec:                          spec:                         spec:
+  replicas: 1                    replicas: 3           →       replicas: 3
+```
+
+**The rules:**
+1. **Objects merge recursively** — keys from both sides are preserved
+2. **Template wins conflicts** — when the same key exists, template value is used
+3. **Arrays replace** — arrays are not merged, they're overwritten entirely
+
+Deep merge lets you keep boilerplate in one place (the base) while templates focus on what's unique.
 
 ## Merging Multiple Manifests
 
-Multiple manifests can be merged by `name`. This enables base + override patterns:
+Manifests themselves can be merged. This enables base + override patterns:
 
 ```yaml
-$template: deploy/template.yaml
-$manifest:
-  - services/base.yaml
-  - services/prod-overrides.yaml
-```
-
-### How Manifest Merging Works
-
-```yaml
-# services/base.yaml
+# services/base.yaml — defaults for all environments
 name: api
 replicas: 1
 resources:
@@ -174,37 +160,49 @@ replicas: 1
 resources:
   cpu: 100m
   memory: 128Mi
+```
 
-# services/prod-overrides.yaml
+```yaml
+# services/prod.yaml — production overrides
 name: api
 replicas: 5
 resources:
   cpu: 500m
 ```
 
-**Merged result for `api`:**
 ```yaml
-name: api
-replicas: 5          # Overridden
-resources:
-  cpu: 500m          # Overridden
-  memory: 128Mi      # Preserved from base
+# template.yaml
+$template: deploy.yaml
+$manifest:
+  - services/base.yaml
+  - services/prod.yaml
 ```
 
-**Merged result for `web`:**
+Items with the same `name` are deep merged:
+
+**Result for `api`:**
+```yaml
+name: api
+replicas: 5          # overridden
+resources:
+  cpu: 500m          # overridden
+  memory: 128Mi      # preserved from base
+```
+
+**Result for `web`:**
 ```yaml
 name: web
-replicas: 1          # No override, keeps base
+replicas: 1          # no override
 resources:
   cpu: 100m
   memory: 128Mi
 ```
 
-Items are matched by `name` and deep merged. Items in overrides that don't exist in base are added.
+This lets you define sensible defaults once, then layer environment-specific overrides on top.
 
 ## Schemas: Validation and Defaults
 
-Schemas validate manifest items and apply defaults:
+Schemas validate manifest items and fill in missing values:
 
 ```json
 {
@@ -233,7 +231,49 @@ name: worker
 # port defaults to 8080
 ```
 
-## The Complete Pipeline
+Schemas catch errors early (wrong types, missing required fields) and reduce repetition in manifests.
+
+## Nested Templates
+
+Templates can invoke other templates, creating nested multiplication:
+
+```yaml
+# template.yaml — iterates environments
+$template: services/template.yaml
+$manifest: services/manifest.yaml
+environment: {{name}}
+---
+# manifest.yaml (environments)
+name: dev
+---
+name: prod
+```
+
+```yaml
+# services/template.yaml — iterates services
+$out: {{environment}}/{{name}}/deployment.yaml
+...
+---
+$out: {{environment}}/{{name}}/service.yaml
+...
+```
+
+```yaml
+# services/manifest.yaml (services)
+name: api
+---
+name: web
+---
+name: worker
+```
+
+**Total output:** 2 environments × 3 services × 2 files = **12 files**
+
+Nesting lets you model hierarchical structures (environments → services → files) naturally.
+
+## The Processing Pipeline
+
+Here's what happens when Trident runs:
 
 ```
 1. Load manifest items
@@ -245,50 +285,14 @@ name: worker
 4. Apply schema defaults
           ↓
 5. For each item × each template document:
-   a. Render Handlebars template
+   a. Render Handlebars expressions
    b. If $in specified, deep merge with base
    c. Write to $out path
 ```
 
-## Nested Multiplication
-
-Templates can invoke other templates, creating nested multiplication:
-
-```yaml
-# template.yaml (2 environments)
-$template: services/template.yaml
-$manifest: services/manifest.yaml
-environment: {{name}}
----
-# manifest.yaml
-name: dev
----
-name: prod
-```
-
-```yaml
-# services/template.yaml (2 file types)
-$out: {{environment}}/{{name}}/deployment.yaml
-...
----
-$out: {{environment}}/{{name}}/service.yaml
-...
-```
-
-```yaml
-# services/manifest.yaml (3 services)
-name: api
----
-name: web
----
-name: worker
-```
-
-**Total output:** 2 environments × 3 services × 2 files = **12 files**
-
 ## Global Values
 
-Pass values available to all manifest items:
+Pass values to all manifest items via CLI:
 
 ```bash
 trident -i . -v environment=prod -f config=prod.json
@@ -302,20 +306,24 @@ environment: {{$values.environment}}
 database: {{$values.config.database.host}}
 ```
 
+`$values` is useful for environment-specific settings that apply across all items.
+
 ## Summary
 
-| Concept | Purpose |
-|---------|---------|
-| **Manifests** | Define your data items |
-| **Templates** | Define output files (multiplicative) |
-| **Patches** | Layer template values over base configs |
-| **Manifest Merging** | Combine manifests by name for overrides |
-| **Schemas** | Validate items and apply defaults |
-| **Nested Templates** | Multiply through sub-templates |
-| **Global Values** | Share config across all items |
+| Concept | What it does | Why it matters |
+|---------|--------------|----------------|
+| **Manifests** | List your items | Define what exists once, generate files for all |
+| **Templates** | Define output files | Each item gets the same file types automatically |
+| **`$out`** | Output file path | Works standalone—no base file required |
+| **`$in`** | Base configuration | Extract boilerplate, templates stay focused |
+| **Deep merge** | Combine objects recursively | Override specific keys without repeating everything |
+| **Manifest merging** | Combine manifests by name | Base defaults + environment overrides |
+| **Schemas** | Validate and set defaults | Catch errors early, reduce manifest repetition |
+| **Nested templates** | Templates invoke templates | Model hierarchies naturally |
+| **`$values`** | Global configuration | Environment settings available everywhere |
 
 ## Next Steps
 
-- Deep dive into [Templates and Manifests](../guides/01-templates-and-manifests.md)
-- Learn about [Schema Validation](../guides/02-schema-validation.md)
-- See [Multi-Environment Recipe](../recipes/02-multi-environment.md) for real patterns
+- [Templates and Manifests Guide](../guides/01-templates-and-manifests.md) — detailed patterns
+- [Schema Validation](../guides/02-schema-validation.md) — defining and using schemas
+- [Multi-Environment Recipe](../recipes/02-multi-environment.md) — real-world example
