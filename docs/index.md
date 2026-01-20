@@ -92,6 +92,7 @@ trident -i ./my-project --dry    # Preview without writing
 1. [Introduction](./getting-started/01-introduction.md) - Why multiplicative templates matter
 2. [Core Concepts](./getting-started/02-core-concepts.md) - Manifests, templates, patches, and merging
 3. [Quick Start](./getting-started/03-quick-start.md) - Build your first project
+4. [Comparison](./getting-started/04-comparison.md) - vs Helm, Kustomize, Jsonnet
 
 ## Guides
 

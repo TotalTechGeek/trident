@@ -297,13 +297,36 @@ $text: |
   }
 ```
 
-## Documentation
+## How It Compares
 
-Full documentation available in the `docs/` directory:
+The biggest advantage of Trident is **managing configuration sprawl**. 10 services × 3 environments × 4 file types = 120 files to maintain. With Trident, you maintain manifests (your data) and templates (your patterns)—not hundreds of repetitive files.
+
+This makes GitOps workflows cleaner:
+- PRs show changes to services and their properties, not 50 similar files
+- Adding a service means adding manifest entries, not copy-pasting files
+- Environment overrides live in dedicated files, merged automatically
+
+| Feature | Trident | Helm | Kustomize |
+|---------|---------|------|-----------|
+| Templating | Yes | Yes | No |
+| Patching/Overlays | Yes | No | Yes |
+| Multiplicative | Yes | No | No |
+| Kubernetes-specific | No | Yes | Yes |
+
+**vs Helm:** No explicit loops needed—manifest items multiply automatically. Supports patching, which Helm doesn't.
+
+**vs Kustomize:** Adds templating on top of patching. Variables, conditionals, and helpers—not just overlays.
+
+**vs Jsonnet:** Stays in YAML. No new language to learn.
+
+See the [full comparison](docs/getting-started/04-comparison.md) for detailed examples and migration guides.
+
+## Documentation
 
 - [Introduction](docs/getting-started/01-introduction.md) — Why multiplicative templates matter
 - [Core Concepts](docs/getting-started/02-core-concepts.md) — Deep dive into the model
 - [Quick Start](docs/getting-started/03-quick-start.md) — Build your first project
+- [Comparison](docs/getting-started/04-comparison.md) — vs Helm, Kustomize, Jsonnet
 - [Directive Reference](docs/reference/01-directives.md) — All directives explained
 - [Helper Reference](docs/reference/02-helpers.md) — All helpers documented
 
