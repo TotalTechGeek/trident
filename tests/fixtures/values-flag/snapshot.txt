@@ -2,8 +2,12 @@
 name: app1
 environment: production
 region: us-west-2
+x_no_name: 42
+x_y_name: 42
 
 >> app2/config.yaml
 name: app2
 environment: production
 region: us-west-2
+x_no_name: 42
+x_y_name: 42

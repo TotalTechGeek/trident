@@ -2,3 +2,5 @@ $out: {{name}}/config.yaml
 name: {{name}}
 environment: {{$values.environment}}
 region: {{$values.region}}
+x_no_name: {{$values.x.X}}
+x_y_name: {{$values.y.X}}

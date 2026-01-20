@@ -1,4 +1,4 @@
 {
   "description": "CLI values with -v flag",
-  "args": ["-i", ".", "-v", "environment=production", "-v", "region=us-west-2"]
+  "args": ["-i", ".", "-v", "environment=production", "-v", "region=us-west-2", "-f", "x.json", "-f", "y=x.json"]
 }
