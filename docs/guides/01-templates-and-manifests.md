@@ -159,6 +159,26 @@ Trident performs a deep merge:
 3. Template values override base values at the same path
 4. Arrays are replaced, not merged
 
+### Multiple Base Files
+
+`$in` accepts an array of files. They're deep merged in order, then the template is merged on top:
+
+```yaml
+$in:
+  - base/deployment.yaml
+  - overrides/{{environment}}.yaml
+$out: {{name}}/deployment.yaml
+metadata:
+  name: {{name}}
+```
+
+This is useful for layering configurations:
+- A shared base with common structure
+- Environment-specific overrides (dev, staging, prod)
+- Template-specific values on top
+
+Files are merged left to right—later files override earlier ones.
+
 ### Supported Base Formats
 
 - YAML (`.yaml`, `.yml`)

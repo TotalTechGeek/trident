@@ -24,8 +24,9 @@ port: {{port}}
 
 ### `$in`
 
-Specifies a base configuration file to merge with.
+Specifies base configuration file(s) to merge with.
 
+**Single file:**
 ```yaml
 $in: base/deployment.yaml
 $out: {{name}}/deployment.yaml
@@ -33,9 +34,21 @@ metadata:
   name: {{name}}
 ```
 
+**Multiple files (merged in order):**
+```yaml
+$in:
+  - base/deployment.yaml
+  - overrides/{{environment}}.yaml
+$out: {{name}}/deployment.yaml
+metadata:
+  name: {{name}}
+```
+
+When multiple files are specified, they are deep merged in order—later files override earlier ones. The template content is then merged on top.
+
 **Supports:** `.yaml`, `.yml`, `.json`, `.xml` files
 
-**Behavior:** Deep merges template content with base file
+**Behavior:** Deep merges base file(s), then template content on top
 
 ---
 
@@ -293,7 +306,7 @@ $exec: echo "Generating {{name}}"
 | Directive | Purpose | Use With |
 |-----------|---------|----------|
 | `$out` | Output file path | Standalone or with `$in` |
-| `$in` | Base configuration (optional) | `$out` |
+| `$in` | Base configuration(s), accepts array | `$out` |
 | `$text` | Raw text output | `$out` |
 | `$root` | Preserve `$` keys | `$out` |
 | `$replace` | String replacement | `$in`, `$text`, `$merge` |

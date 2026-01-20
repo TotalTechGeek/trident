@@ -120,6 +120,21 @@ spec:
 
 Trident performs a **deep merge**: it recursively combines the base and template objects.
 
+### Multiple Base Files
+
+`$in` also accepts an array of files. They're merged in order, with later files overriding earlier ones:
+
+```yaml
+$in:
+  - base/deployment.yaml
+  - overrides/{{environment}}.yaml
+$out: {{name}}/deployment.yaml
+metadata:
+  name: {{name}}
+```
+
+This lets you layer multiple configurations: a common base, then environment-specific overrides, then template-specific patches on top.
+
 ### How Deep Merge Works
 
 ```
@@ -319,7 +334,7 @@ database: {{$values.config.database.host}}
 | **Manifests** | List your items | Define what exists once, generate files for all |
 | **Templates** | Define output files | Each item gets the same file types automatically |
 | **`$out`** | Output file path | Works standalone—no base file required |
-| **`$in`** | Base configuration | Extract boilerplate, templates stay focused |
+| **`$in`** | Base configuration(s) | Extract boilerplate, layer overrides |
 | **Deep merge** | Combine objects recursively | Override specific keys without repeating everything |
 | **Manifest merging** | Combine manifests by name | Base defaults + environment overrides |
 | **Schemas** | Validate and set defaults | Catch errors early, reduce manifest repetition |

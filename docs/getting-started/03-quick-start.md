@@ -166,6 +166,15 @@ spec:
       app: api
 ```
 
+**Tip:** `$in` also accepts an array of files, merged in order:
+
+```yaml
+$in:
+  - base/deployment.yaml
+  - overrides/{{environment}}.yaml
+$out: {{name}}/deployment.yaml
+```
+
 ## Merging Multiple Manifests (Optional)
 
 Sometimes, you may have use-cases where you want to provide overrides for items in your manifest, typically per environment. Whenever you opt into several manifests, it will merge items of the same name, last writer wins. 
@@ -227,7 +236,7 @@ region: {{$values.region}}
 | **Manifest** | Your data—services, configs, items to process |
 | **Template** | Output rules—what files to generate per item |
 | **`$out`** | Where to write each file |
-| **`$in`** | Base file to merge with (optional) |
+| **`$in`** | Base file(s) to merge with (optional, accepts array) |
 | **Deep merge** | Combines base + template, preserving nested structure |
 | **Manifest merging** | Combine multiple manifests for overrides |
 | **`$values`** | Access CLI-provided values |

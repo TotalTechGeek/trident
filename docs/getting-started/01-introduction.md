@@ -126,6 +126,15 @@ spec:
 
 This keeps your templates focused on what's unique to each service, while the base handles the boilerplate.
 
+You can also specify multiple base files as an array—they're merged in order:
+
+```yaml
+$in:
+  - base/deployment.yaml
+  - overrides/{{environment}}.yaml
+$out: {{name}}/deployment.yaml
+```
+
 ## Merging Multiple Manifests
 
 You can also merge manifests together. This is useful for environment-specific overrides:
@@ -185,7 +194,7 @@ The rules:
 | **Manifest** | Lists your data items (services, configs, etc.) |
 | **Template** | Defines what files to generate per item |
 | **`$out`** | Where to write the output file |
-| **`$in`** | Base file to merge with (optional) |
+| **`$in`** | Base file(s) to merge with (optional, accepts array) |
 | **Deep merge** | Recursively combines objects, later values win |
 | **Multiplication** | Every manifest item × every template document |
 
