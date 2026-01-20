@@ -1,0 +1,9 @@
+>> output/prod.yaml
+metadata:
+  name: TestSvc
+replicas: 8
+
+>> output/stage.yaml
+metadata:
+  name: TestSvc
+replicas: 4

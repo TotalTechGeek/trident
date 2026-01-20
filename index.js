@@ -208,6 +208,14 @@ function resolvePath (file, manifestLocation) {
     return path.resolve(manifestDir, file)
 }
 
+function get$In (input, templateLocation) {
+  if (!input) return input
+  if (Array.isArray(input)) return mergeDeep(...input.map(i => get$In(i, templateLocation)))
+  const resolved = resolvePath(input, templateLocation)
+  if (inputCache[resolved]) return inputCache[resolved]
+  if (resolved.endsWith('.xml')) return inputCache[input] = xmlParser.parse(fs.readFileSync(resolved, 'utf8'))
+  return inputCache[input] = load(fs.readFileSync(resolved, 'utf8'))
+}
 
 async function processTemplate (template, manifest, schema = { type: 'object', properties: { name: { type: 'string' }}, required: ['name'], additionalProperties: true }, { templateLocation = '.', $values = values, additional = null, chdir = '.', parallel = false } = {}) {
     templateLocation = path.resolve(templateLocation)
@@ -294,15 +302,11 @@ async function processTemplate (template, manifest, schema = { type: 'object', p
             if (!substitution.$out) return
 
             const ext = path.extname(substitution.$out).substring(1)
-            let loadCommand = path.extname(substitution.$in || '') === '.xml' ? 'load_xml' : 'load'
-            substitution.$in = substitution.$in && resolvePath(substitution.$in, templateLocation)
+            const $in = get$In(substitution.$in, templateLocation)
 
             let output
-            if (substitution.$in && !inputCache[substitution.$in]) inputCache[substitution.$in] = load(fs.readFileSync(substitution.$in, 'utf8'))
-
-            if (!substitution.$in) output = cleanup({...substitution})
-            else if (loadCommand === 'load_xml') output = mergeDeep(xmlParser.parse(fs.readFileSync(substitution.$in, 'utf8')), cleanup({...substitution}))
-            else output = mergeDeep(structuredClone(inputCache[substitution.$in]), cleanup({...substitution}))
+            if (!$in) output = cleanup({...substitution})
+            else output = mergeDeep(structuredClone($in), cleanup({...substitution}))
 
             if (ext === 'yaml') output = dump(output)
             if (ext === 'json') output = JSON.stringify(output)

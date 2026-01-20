@@ -1,0 +1,4 @@
+{
+  "description": "$in with an array input, seeing if they merge deep",
+  "args": ["-i", "."]
+}
