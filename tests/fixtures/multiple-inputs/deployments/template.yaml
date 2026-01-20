@@ -1,0 +1,4 @@
+$out: deployments/{{name}}.yaml
+kind: Deployment
+name: {{name}}
+replicas: {{replicas}}

@@ -1,0 +1,7 @@
+$in: base/service.yaml
+$out: {{name}}/service.yaml
+metadata:
+  name: {{name}}
+spec:
+  replicas: {{replicas}}
+  port: {{port}}

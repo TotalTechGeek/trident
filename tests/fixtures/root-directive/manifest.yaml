@@ -1,0 +1,5 @@
+name: user-service
+type: microservice
+---
+name: gateway
+type: api-gateway

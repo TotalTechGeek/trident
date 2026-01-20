@@ -1,0 +1,15 @@
+$out: {{name}}/deployment.yaml
+kind: Deployment
+metadata:
+  name: {{name}}
+---
+$out: {{name}}/service.yaml
+kind: Service
+metadata:
+  name: {{name}}-svc
+---
+$merge:
+  files:
+    - {{name}}/*.yaml
+  separator: "---\n"
+$out: {{name}}/release.yaml

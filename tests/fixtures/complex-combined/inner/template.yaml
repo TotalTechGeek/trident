@@ -1,0 +1,65 @@
+$in: base/deployment.yaml
+$out: {{content.name}}/deployment.yaml
+$replace:
+  __SERVICE_NAME__: {{content.name}}
+  __ENVIRONMENT__: {{$values.env.name}}
+metadata:
+  name: {{content.name}}
+  labels:
+    environment: {{$values.env.name}}
+    team: {{content.team}}
+spec:
+  replicas: {{multiply content.replicas $values.env.replicas_multiplier}}
+---
+$out: {{content.name}}/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{content.name}}-svc
+  annotations:
+    environment: {{$values.env.name}}
+spec:
+  selector:
+    app: {{content.name}}
+  ports:
+    - port: {{content.port}}
+      targetPort: {{content.port}}
+---
+$out: {{content.name}}/nginx.conf
+$text: |
+  # Nginx config for {{content.name}} ({{$values.env.name}})
+  upstream {{content.name}}_backend {
+      server {{content.name}}-svc:{{content.port}};
+  }
+
+  server {
+      listen 80;
+      server_name {{content.name}}.{{$values.env.domain}};
+
+      location / {
+          proxy_pass http://{{content.name}}_backend;
+          proxy_set_header Host $host;
+          proxy_set_header X-Environment {{$values.env.name}};
+      }
+
+      location /health {
+          return 200 '{"service": "{{content.name}}", "env": "{{$values.env.name}}"}';
+          add_header Content-Type application/json;
+      }
+  }
+$replace:
+  $host: "$host"
+---
+$out: {{content.name}}/configmap.yaml
+$replace:
+  __SERVICE__: {{content.name}}
+  __ENV__: {{$values.env.name}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{content.name}}-config
+data:
+  SERVICE_NAME: __SERVICE__
+  ENVIRONMENT: __ENV__
+  LOG_LEVEL: {{#if (eq $values.env.name "prod")}}warn{{else}}debug{{/if}}
+  ENDPOINT: https://{{content.name}}.{{$values.env.domain}}/api

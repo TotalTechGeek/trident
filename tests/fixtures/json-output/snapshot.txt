@@ -1,0 +1,4 @@
+>> production/config.json
+{"name":"production","version":"2.5.0","settings":{"debug":false,"maxConnections":500}}
+>> development/config.json
+{"name":"development","version":"1.0.0","settings":{"debug":true,"maxConnections":100}}

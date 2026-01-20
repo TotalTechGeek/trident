@@ -1,0 +1,11 @@
+>> service1/config.yaml
+name: service1
+database: postgres://db:5432
+cache: redis://cache:6379
+logLevel: info
+
+>> service2/config.yaml
+name: service2
+database: postgres://db:5432
+cache: redis://cache:6379
+logLevel: info

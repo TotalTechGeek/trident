@@ -1,0 +1,12 @@
+{{validate this (object
+  "type" "object"
+  "properties" (object
+    "name" (object "type" "string")
+    "port" (object "type" "number" "minimum" 1 "maximum" 65535)
+  )
+  "required" (array "name" "port")
+)}}
+$out: {{name}}/config.yaml
+name: {{name}}
+port: {{port}}
+validated: true

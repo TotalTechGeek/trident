@@ -1,0 +1,4 @@
+{
+  "description": "Multiple -i flags for different inputs",
+  "args": ["-i", "services", "-i", "deployments"]
+}

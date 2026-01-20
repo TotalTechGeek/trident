@@ -1,0 +1,3 @@
+container:
+  image: {{image}}
+  port: {{port}}

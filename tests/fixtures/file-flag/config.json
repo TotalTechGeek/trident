@@ -1,0 +1,5 @@
+{
+  "database": "postgres://db:5432",
+  "cache": "redis://cache:6379",
+  "logLevel": "info"
+}

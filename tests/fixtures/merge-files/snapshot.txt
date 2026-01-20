@@ -1,0 +1,11 @@
+>> myapp/deployment.yaml
+kind: Deployment
+metadata:
+  name: myapp
+
+>> myapp/service.yaml
+kind: Service
+metadata:
+  name: myapp-svc
+
+>> myapp/release.yaml (would be generated from merge)

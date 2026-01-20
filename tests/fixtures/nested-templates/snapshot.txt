@@ -1,0 +1,15 @@
+>> frontend/app.yaml
+apiVersion: v1
+kind: App
+metadata:
+  name: frontend
+  labels:
+    tier: web
+
+>> backend/app.yaml
+apiVersion: v1
+kind: App
+metadata:
+  name: backend
+  labels:
+    tier: api

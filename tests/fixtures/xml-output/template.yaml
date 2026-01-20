@@ -1,0 +1,5 @@
+$in: base/config.xml
+$out: {{name}}/config.xml
+app:
+  name: {{name}}
+  port: {{port}}

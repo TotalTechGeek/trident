@@ -1,0 +1,4 @@
+$template: inner/template.yaml
+$manifest:
+  - inner/base.yaml
+  - inner/overrides.yaml

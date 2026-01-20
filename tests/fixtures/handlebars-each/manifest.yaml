@@ -1,0 +1,14 @@
+name: api
+env:
+  DATABASE_URL: postgres://localhost
+  REDIS_URL: redis://localhost
+  DEBUG: "true"
+ports:
+  - 8080
+  - 8443
+---
+name: worker
+env:
+  QUEUE_NAME: tasks
+ports:
+  - 9000

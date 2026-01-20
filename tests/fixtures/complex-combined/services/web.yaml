@@ -1,0 +1,4 @@
+name: web
+team: frontend
+port: 3000
+replicas: 1

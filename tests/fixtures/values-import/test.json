@@ -1,0 +1,4 @@
+{
+  "description": "$values directive importing from file",
+  "args": ["-i", "."]
+}

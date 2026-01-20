@@ -1,0 +1,13 @@
+>> service-alpha/config.yaml
+name: service-alpha
+timeout: 30
+retries: 3
+version: 1
+owner: service-alpha
+
+>> service-beta/config.yaml
+name: service-beta
+timeout: 30
+retries: 3
+version: 1
+owner: service-beta

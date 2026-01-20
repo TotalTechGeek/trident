@@ -1,0 +1,11 @@
+$out: {{name}}/deployment.yaml
+name: {{name}}
+env:
+{{#each env}}
+  - name: {{@key}}
+    value: {{this}}
+{{/each}}
+ports:
+{{#each ports}}
+  - containerPort: {{this}}
+{{/each}}

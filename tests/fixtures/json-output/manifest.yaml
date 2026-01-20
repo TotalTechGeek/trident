@@ -1,0 +1,7 @@
+name: production
+version: "2.5.0"
+debug: false
+maxConnections: 500
+---
+name: development
+debug: true

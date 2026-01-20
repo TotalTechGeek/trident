@@ -1,0 +1,3 @@
+$out: {{name}}/config.yaml
+name: {{name}}
+env: {{json (merge defaults overrides)}}

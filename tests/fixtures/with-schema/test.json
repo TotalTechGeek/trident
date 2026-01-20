@@ -1,0 +1,4 @@
+{
+  "description": "Template with JSON schema defaults",
+  "args": ["-i", "."]
+}

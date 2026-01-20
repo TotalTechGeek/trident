@@ -1,0 +1,4 @@
+name: api
+team: backend
+port: 8080
+replicas: 2

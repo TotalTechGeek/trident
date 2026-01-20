@@ -1,0 +1,13 @@
+>> small/config.yaml
+name: small
+spec:
+  resources:
+    cpu: 100m
+    memory: 128Mi
+
+>> large/config.yaml
+name: large
+spec:
+  resources:
+    cpu: 1000m
+    memory: 1Gi

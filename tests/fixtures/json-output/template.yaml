@@ -1,0 +1,6 @@
+$out: {{name}}/config.json
+name: {{name}}
+version: {{default version "1.0.0"}}
+settings:
+  debug: {{default debug false}}
+  maxConnections: {{default maxConnections 100}}

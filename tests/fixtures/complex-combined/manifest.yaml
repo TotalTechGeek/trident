@@ -1,0 +1,7 @@
+name: dev
+domain: dev.example.com
+replicas_multiplier: 1
+---
+name: prod
+domain: example.com
+replicas_multiplier: 3

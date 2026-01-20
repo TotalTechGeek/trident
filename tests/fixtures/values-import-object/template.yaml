@@ -1,0 +1,13 @@
+$out: {{name}}/config.yaml
+$values:
+  - settings:
+      timeout: 30
+      retries: 3
+  - metadata:
+      version: "1.0"
+      owner: {{name}}
+name: {{name}}
+timeout: {{$values.settings.timeout}}
+retries: {{$values.settings.retries}}
+version: {{$values.metadata.version}}
+owner: {{$values.metadata.owner}}

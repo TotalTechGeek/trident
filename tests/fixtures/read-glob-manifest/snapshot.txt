@@ -1,0 +1,38 @@
+>> api-service/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-service
+  labels:
+    team: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: api-service
+
+>> web-frontend/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-frontend
+  labels:
+    team: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web-frontend
+
+>> background-worker/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: background-worker
+  labels:
+    team: platform
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: background-worker

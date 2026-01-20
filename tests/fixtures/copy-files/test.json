@@ -1,0 +1,4 @@
+{
+  "description": "$copy directive for copying files",
+  "args": ["-i", "."]
+}

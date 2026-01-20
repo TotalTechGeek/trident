@@ -1,0 +1,5 @@
+name: api
+replicas: 3
+---
+name: web
+replicas: 2

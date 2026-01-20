@@ -1,0 +1,4 @@
+$out: {{name}}/config.yaml
+name: {{name}}
+spec:
+  {{indent (use "partials/nested.yaml") 2}}

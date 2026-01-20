@@ -1,0 +1,10 @@
+$out: {{name}}.conf
+$text: >-
+  server {
+      listen {{default port 80}};
+      server_name {{name}}.example.com;
+
+      location / {
+          proxy_pass http://{{name}}:8080;
+      }
+  }

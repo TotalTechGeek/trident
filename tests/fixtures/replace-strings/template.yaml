@@ -1,0 +1,5 @@
+$in: base/config.yaml
+$out: {{name}}/config.yaml
+$replace:
+  SERVICE_NAME: {{name}}
+  ENV_PLACEHOLDER: {{environment}}

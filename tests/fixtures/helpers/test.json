@@ -1,0 +1,4 @@
+{
+  "description": "Custom helpers: json, min, max, default",
+  "args": ["-i", "."]
+}

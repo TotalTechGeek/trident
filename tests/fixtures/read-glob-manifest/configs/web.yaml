@@ -1,0 +1,3 @@
+name: web-frontend
+team: frontend
+replicas: 2

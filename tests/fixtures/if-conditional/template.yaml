@@ -1,0 +1,15 @@
+$out: {{name}}/config.yaml
+name: {{name}}
+{{#if debug}}
+logging:
+  level: debug
+  verbose: true
+{{/if}}
+{{#unless production}}
+devTools: enabled
+{{/unless}}
+{{#if replicas}}
+replicas: {{replicas}}
+{{else}}
+replicas: 1
+{{/if}}

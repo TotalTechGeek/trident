@@ -1,0 +1,31 @@
+>> server1/config.xml
+<?xml version="1.0"?>
+<config>
+  <app>
+    <name>default</name>
+    <port>80</port>
+  </app>
+  <logging>
+    <level>info</level>
+  </logging>
+</config>
+<app>
+  <name>server1</name>
+  <port>8080</port>
+</app>
+
+>> server2/config.xml
+<?xml version="1.0"?>
+<config>
+  <app>
+    <name>default</name>
+    <port>80</port>
+  </app>
+  <logging>
+    <level>info</level>
+  </logging>
+</config>
+<app>
+  <name>server2</name>
+  <port>9090</port>
+</app>

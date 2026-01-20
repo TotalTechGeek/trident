@@ -1,0 +1,4 @@
+$out: {{name}}/config.yaml
+name: {{name}}
+replicas: {{replicas}}
+memory: {{memory}}

@@ -1,0 +1,4 @@
+{
+  "description": "{{use}} helper for including sub-templates",
+  "args": ["-i", "."]
+}

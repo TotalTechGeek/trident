@@ -1,0 +1,6 @@
+name: dev-app
+debug: true
+---
+name: prod-app
+production: true
+replicas: 5

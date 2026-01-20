@@ -1,0 +1,6 @@
+>> generated/config.yaml
+name: standalone-app
+version: 1.0.0
+settings:
+  debug: false
+  port: 8080

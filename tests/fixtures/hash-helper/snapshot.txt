@@ -1,0 +1,9 @@
+>> deployment-v1/config.yaml
+name: deployment-v1
+configHash: <dry-run-hash:configs/app.json>
+secretHash: <dry-run-hash:configs/secret.json>
+
+>> deployment-v2/config.yaml
+name: deployment-v2
+configHash: <dry-run-hash:configs/app.json>
+secretHash: <dry-run-hash:configs/secret.json>

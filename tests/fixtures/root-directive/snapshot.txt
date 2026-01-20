@@ -1,0 +1,11 @@
+>> user-service/meta.yaml
+name: user-service
+type: microservice
+$schema: http://json-schema.org/draft-07/schema#
+$id: user-service-config
+
+>> gateway/meta.yaml
+name: gateway
+type: api-gateway
+$schema: http://json-schema.org/draft-07/schema#
+$id: gateway-config

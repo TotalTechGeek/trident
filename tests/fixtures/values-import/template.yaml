@@ -1,0 +1,6 @@
+$out: {{name}}/config.yaml
+$values:
+  - env: env.json
+name: {{name}}
+database: {{$values.env.database}}
+cache: {{$values.env.cache}}

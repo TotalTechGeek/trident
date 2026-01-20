@@ -1,0 +1,4 @@
+{
+  "description": "{{hash}} helper for file content hashing",
+  "args": ["-i", "."]
+}

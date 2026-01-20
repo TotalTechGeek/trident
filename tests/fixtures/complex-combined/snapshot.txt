@@ -1,0 +1,267 @@
+>> api/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  labels:
+    environment: dev
+    managed-by: trident
+    team: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api
+  template:
+    spec:
+      containers:
+        - name: api
+          image: registry.example.com/api:latest
+
+>> api/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-svc
+  annotations:
+    environment: dev
+spec:
+  selector:
+    app: api
+  ports:
+    - port: 8080
+      targetPort: 8080
+
+>> api/nginx.conf
+# Nginx config for api (dev)
+upstream api_backend {
+    server api-svc:8080;
+}
+
+server {
+    listen 80;
+    server_name api.dev.example.com;
+
+    location / {
+        proxy_pass http://api_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Environment dev;
+    }
+
+    location /health {
+        return 200 '{"service": "api", "env": "dev"}';
+        add_header Content-Type application/json;
+    }
+}
+
+>> api/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+data:
+  SERVICE_NAME: api
+  ENVIRONMENT: dev
+  LOG_LEVEL: debug
+  ENDPOINT: https://api.dev.example.com/api
+
+>> web/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels:
+    environment: dev
+    managed-by: trident
+    team: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    spec:
+      containers:
+        - name: web
+          image: registry.example.com/web:latest
+
+>> web/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-svc
+  annotations:
+    environment: dev
+spec:
+  selector:
+    app: web
+  ports:
+    - port: 3000
+      targetPort: 3000
+
+>> web/nginx.conf
+# Nginx config for web (dev)
+upstream web_backend {
+    server web-svc:3000;
+}
+
+server {
+    listen 80;
+    server_name web.dev.example.com;
+
+    location / {
+        proxy_pass http://web_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Environment dev;
+    }
+
+    location /health {
+        return 200 '{"service": "web", "env": "dev"}';
+        add_header Content-Type application/json;
+    }
+}
+
+>> web/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-config
+data:
+  SERVICE_NAME: web
+  ENVIRONMENT: dev
+  LOG_LEVEL: debug
+  ENDPOINT: https://web.dev.example.com/api
+
+>> api/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  labels:
+    environment: prod
+    managed-by: trident
+    team: backend
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: api
+  template:
+    spec:
+      containers:
+        - name: api
+          image: registry.example.com/api:latest
+
+>> api/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-svc
+  annotations:
+    environment: prod
+spec:
+  selector:
+    app: api
+  ports:
+    - port: 8080
+      targetPort: 8080
+
+>> api/nginx.conf
+# Nginx config for api (prod)
+upstream api_backend {
+    server api-svc:8080;
+}
+
+server {
+    listen 80;
+    server_name api.example.com;
+
+    location / {
+        proxy_pass http://api_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Environment prod;
+    }
+
+    location /health {
+        return 200 '{"service": "api", "env": "prod"}';
+        add_header Content-Type application/json;
+    }
+}
+
+>> api/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+data:
+  SERVICE_NAME: api
+  ENVIRONMENT: prod
+  LOG_LEVEL: warn
+  ENDPOINT: https://api.example.com/api
+
+>> web/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels:
+    environment: prod
+    managed-by: trident
+    team: frontend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web
+  template:
+    spec:
+      containers:
+        - name: web
+          image: registry.example.com/web:latest
+
+>> web/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-svc
+  annotations:
+    environment: prod
+spec:
+  selector:
+    app: web
+  ports:
+    - port: 3000
+      targetPort: 3000
+
+>> web/nginx.conf
+# Nginx config for web (prod)
+upstream web_backend {
+    server web-svc:3000;
+}
+
+server {
+    listen 80;
+    server_name web.example.com;
+
+    location / {
+        proxy_pass http://web_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Environment prod;
+    }
+
+    location /health {
+        return 200 '{"service": "web", "env": "prod"}';
+        add_header Content-Type application/json;
+    }
+}
+
+>> web/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-config
+data:
+  SERVICE_NAME: web
+  ENVIRONMENT: prod
+  LOG_LEVEL: warn
+  ENDPOINT: https://web.example.com/api

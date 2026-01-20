@@ -1,0 +1,7 @@
+$out: {{name}}/combined.yaml
+name: {{name}}
+services:
+{{#each (read_glob "services/*.yaml" true)}}
+  - name: {{this.name}}
+    config: {{json this.content}}
+{{/each}}

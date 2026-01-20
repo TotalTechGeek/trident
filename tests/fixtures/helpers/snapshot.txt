@@ -1,0 +1,21 @@
+>> service-a/config.yaml
+name: service-a
+settings:
+  debug: true
+  log_level: verbose
+auto_settings:
+  debug: true
+  log_level: verbose
+replicas: 5
+maxReplicas: 5
+timeout: 30
+
+>> service-b/config.yaml
+name: service-b
+settings:
+  debug: false
+auto_settings:
+  debug: false
+replicas: 10
+maxReplicas: 15
+timeout: 60

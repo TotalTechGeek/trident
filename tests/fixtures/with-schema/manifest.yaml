@@ -1,0 +1,5 @@
+name: api
+port: 8080
+---
+name: web
+replicas: 3

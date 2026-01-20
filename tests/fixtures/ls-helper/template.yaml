@@ -1,0 +1,10 @@
+$out: {{name}}/manifest.yaml
+name: {{name}}
+configFiles:
+{{#each (ls "configs/*.json")}}
+  - {{this}}
+{{/each}}
+directories:
+{{#each (ls "modules/*" true)}}
+  - {{this}}
+{{/each}}

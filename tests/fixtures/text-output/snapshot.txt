@@ -1,0 +1,27 @@
+>> api.conf
+server {
+    listen 3000;
+    server_name api.example.com;
+
+    location / {
+        proxy_pass http://api:8080;
+    }
+}
+>> web.conf
+server {
+    listen 80;
+    server_name web.example.com;
+
+    location / {
+        proxy_pass http://web:8080;
+    }
+}
+>> admin.conf
+server {
+    listen 9000;
+    server_name admin.example.com;
+
+    location / {
+        proxy_pass http://admin:8080;
+    }
+}

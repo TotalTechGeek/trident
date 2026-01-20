@@ -1,0 +1,7 @@
+$out: {{name}}/config.yaml
+name: {{name}}
+settings: {{json settings}}
+auto_settings: {{settings}}
+replicas: {{min replicas 10}}
+maxReplicas: {{max replicas 2}}
+timeout: {{default timeout 30}}

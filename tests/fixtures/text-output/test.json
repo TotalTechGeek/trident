@@ -1,0 +1,4 @@
+{
+  "description": "Text output with $text directive",
+  "args": ["-i", "."]
+}

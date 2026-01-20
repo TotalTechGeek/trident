@@ -1,0 +1,4 @@
+{
+  "description": "{{read_glob}} helper for reading multiple files",
+  "args": ["-i", "."]
+}

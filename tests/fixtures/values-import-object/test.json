@@ -1,0 +1,4 @@
+{
+  "description": "$values directive with inline objects",
+  "args": ["-i", "."]
+}

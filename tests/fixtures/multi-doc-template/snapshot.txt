@@ -1,0 +1,41 @@
+>> frontend/deployment.yaml
+kind: Deployment
+metadata:
+  name: frontend
+spec:
+  replicas: 3
+
+>> frontend/service.yaml
+kind: Service
+metadata:
+  name: frontend-svc
+spec:
+  port: 80
+
+>> frontend/configmap.yaml
+kind: ConfigMap
+metadata:
+  name: frontend-config
+data:
+  ENV: production
+
+>> backend/deployment.yaml
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: 2
+
+>> backend/service.yaml
+kind: Service
+metadata:
+  name: backend-svc
+spec:
+  port: 8080
+
+>> backend/configmap.yaml
+kind: ConfigMap
+metadata:
+  name: backend-config
+data:
+  ENV: production

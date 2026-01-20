@@ -1,0 +1,15 @@
+>> platform/combined.yaml
+name: platform
+services:
+  - name: api
+    config:
+      port: 8080
+      replicas: 3
+  - name: web
+    config:
+      port: 80
+      replicas: 2
+  - name: worker
+    config:
+      port: 9000
+      replicas: 5

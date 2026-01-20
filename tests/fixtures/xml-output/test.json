@@ -1,0 +1,4 @@
+{
+  "description": "XML file output",
+  "args": ["-i", "."]
+}

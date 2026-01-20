@@ -1,0 +1,4 @@
+{
+  "description": "Template without manifest file",
+  "args": ["-i", "template.yaml"]
+}

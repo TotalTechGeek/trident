@@ -1,0 +1,9 @@
+>> service-a/config.yaml
+name: service-a
+replicas: 5
+memory: 256Mi
+
+>> service-b/config.yaml
+name: service-b
+replicas: 1
+memory: 1Gi

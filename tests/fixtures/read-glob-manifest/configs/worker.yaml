@@ -1,0 +1,3 @@
+name: background-worker
+team: platform
+replicas: 5

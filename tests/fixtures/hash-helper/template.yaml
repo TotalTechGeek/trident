@@ -1,0 +1,4 @@
+$out: {{name}}/config.yaml
+name: {{name}}
+configHash: {{hash "configs/app.json"}}
+secretHash: {{hash "configs/secret.json"}}

@@ -1,0 +1,4 @@
+$chdir: output
+---
+$template: services/template.yaml
+$manifest: services/manifest.yaml

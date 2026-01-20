@@ -1,0 +1,4 @@
+{
+  "description": "Handlebars each helper for iteration",
+  "args": ["-i", "."]
+}

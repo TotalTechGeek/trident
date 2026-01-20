@@ -1,0 +1,5 @@
+name: users
+environment: production
+---
+name: orders
+environment: staging

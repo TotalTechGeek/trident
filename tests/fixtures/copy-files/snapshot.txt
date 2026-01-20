@@ -1,0 +1,4 @@
+>> app1/static/license.txt
+>> app1/static/readme.txt
+>> app2/static/license.txt
+>> app2/static/readme.txt

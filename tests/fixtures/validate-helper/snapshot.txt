@@ -1,0 +1,9 @@
+>> api-server/config.yaml
+name: api-server
+port: 8080
+validated: true
+
+>> web-server/config.yaml
+name: web-server
+port: 443
+validated: true

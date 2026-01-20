@@ -1,0 +1,11 @@
+>> dev-app/config.yaml
+name: dev-app
+logging:
+  level: debug
+  verbose: true
+devTools: enabled
+replicas: 1
+
+>> prod-app/config.yaml
+name: prod-app
+replicas: 5

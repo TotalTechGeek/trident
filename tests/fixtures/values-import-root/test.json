@@ -1,0 +1,4 @@
+{
+  "description": "$values importing to root with '.'",
+  "args": ["-i", "."]
+}

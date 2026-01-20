@@ -1,0 +1,4 @@
+{
+  "description": "$merge directive for combining files",
+  "args": ["-i", "."]
+}

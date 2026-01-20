@@ -1,0 +1,5 @@
+$out: {{name}}/config.yaml
+name: {{name}}
+database: {{$values.config.database}}
+cache: {{$values.config.cache}}
+logLevel: {{$values.config.logLevel}}

@@ -1,0 +1,13 @@
+name: app1
+defaults:
+  LOG_LEVEL: info
+  TIMEOUT: 30
+overrides:
+  LOG_LEVEL: debug
+---
+name: app2
+defaults:
+  LOG_LEVEL: info
+  TIMEOUT: 30
+overrides:
+  TIMEOUT: 60

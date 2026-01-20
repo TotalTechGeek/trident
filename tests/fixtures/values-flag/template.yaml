@@ -1,0 +1,4 @@
+$out: {{name}}/config.yaml
+name: {{name}}
+environment: {{$values.environment}}
+region: {{$values.region}}

@@ -1,0 +1,9 @@
+>> api/config.yaml
+name: api
+database: postgres://localhost:5432/mydb
+cache: redis://localhost:6379
+
+>> worker/config.yaml
+name: worker
+database: postgres://localhost:5432/mydb
+cache: redis://localhost:6379

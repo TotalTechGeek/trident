@@ -1,0 +1,20 @@
+>> api/deployment.yaml
+name: api
+env:
+  - name: DATABASE_URL
+    value: postgres://localhost
+  - name: REDIS_URL
+    value: redis://localhost
+  - name: DEBUG
+    value: true
+ports:
+  - containerPort: 8080
+  - containerPort: 8443
+
+>> worker/deployment.yaml
+name: worker
+env:
+  - name: QUEUE_NAME
+    value: tasks
+ports:
+  - containerPort: 9000

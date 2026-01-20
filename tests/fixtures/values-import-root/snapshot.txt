@@ -1,0 +1,9 @@
+>> east-service/config.yaml
+name: east-service
+region: us-east-1
+environment: production
+
+>> west-service/config.yaml
+name: west-service
+region: us-east-1
+environment: production

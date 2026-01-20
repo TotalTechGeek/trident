@@ -1,0 +1,9 @@
+$chdir: output/{{name}}
+---
+$template: inner/template.yaml
+$manifest: {{read_glob "services/*.yaml" true}}
+$values:
+  - env:
+      name: {{name}}
+      domain: {{domain}}
+      replicas_multiplier: {{replicas_multiplier}}

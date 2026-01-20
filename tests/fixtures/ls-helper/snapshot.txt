@@ -1,0 +1,12 @@
+>> app/manifest.yaml
+name: app
+configFiles:
+  - >-
+    /Users/jesse/Documents/Projects/Experiment/tests/fixtures/ls-helper/configs/cache.json
+  - >-
+    /Users/jesse/Documents/Projects/Experiment/tests/fixtures/ls-helper/configs/db.json
+directories:
+  - >-
+    /Users/jesse/Documents/Projects/Experiment/tests/fixtures/ls-helper/modules/api/
+  - >-
+    /Users/jesse/Documents/Projects/Experiment/tests/fixtures/ls-helper/modules/auth/

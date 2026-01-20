@@ -1,0 +1,11 @@
+>> app1/config.yaml
+name: app1
+env:
+  LOG_LEVEL: debug
+  TIMEOUT: 30
+
+>> app2/config.yaml
+name: app2
+env:
+  LOG_LEVEL: info
+  TIMEOUT: 60

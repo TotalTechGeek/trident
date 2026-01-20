@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<config>
+  <app>
+    <name>default</name>
+    <port>80</port>
+  </app>
+  <logging>
+    <level>info</level>
+  </logging>
+</config>

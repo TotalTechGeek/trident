@@ -1,0 +1,3 @@
+resources:
+  cpu: {{cpu}}
+  memory: {{memory}}

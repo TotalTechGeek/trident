@@ -1,0 +1,4 @@
+{
+  "description": "Complex: nested templates, read_glob manifest, $text, $replace",
+  "args": ["-i", "."]
+}

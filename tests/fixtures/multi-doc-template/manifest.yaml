@@ -1,0 +1,9 @@
+name: frontend
+replicas: 3
+port: 80
+env: production
+---
+name: backend
+replicas: 2
+port: 8080
+env: production

@@ -1,0 +1,4 @@
+{
+  "description": "Multiple manifests merged together",
+  "args": ["-i", "."]
+}

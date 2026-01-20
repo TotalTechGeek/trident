@@ -1,0 +1,6 @@
+$in: base/app.yaml
+$out: {{name}}/app.yaml
+metadata:
+  name: {{name}}
+  labels:
+    tier: {{tier}}

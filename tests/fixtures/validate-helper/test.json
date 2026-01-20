@@ -1,0 +1,4 @@
+{
+  "description": "{{validate}} helper for inline schema validation",
+  "args": ["-i", "."]
+}

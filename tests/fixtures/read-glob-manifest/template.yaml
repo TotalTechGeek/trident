@@ -1,0 +1,2 @@
+$template: inner/template.yaml
+$manifest: {{read_glob "configs/*.yaml" true}}

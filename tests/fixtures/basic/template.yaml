@@ -1,0 +1,6 @@
+$in: base/deployment.yaml
+$out: {{name}}/deployment.yaml
+metadata:
+  name: {{name}}
+spec:
+  replicas: {{replicas}}

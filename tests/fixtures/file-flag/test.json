@@ -1,0 +1,4 @@
+{
+  "description": "-f flag for importing values from file",
+  "args": ["-i", ".", "-f", "config=config.json"]
+}

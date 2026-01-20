@@ -1,0 +1,19 @@
+>> services/api.yaml
+kind: Service
+name: api
+port: 8080
+
+>> services/web.yaml
+kind: Service
+name: web
+port: 80
+
+>> deployments/api.yaml
+kind: Deployment
+name: api
+replicas: 3
+
+>> deployments/web.yaml
+kind: Deployment
+name: web
+replicas: 2

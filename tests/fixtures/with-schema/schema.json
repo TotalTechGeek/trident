@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "replicas": { "type": "integer", "default": 1, "minimum": 1 },
+    "port": { "type": "integer", "default": 80 }
+  },
+  "required": ["name"]
+}

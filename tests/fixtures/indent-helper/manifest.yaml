@@ -1,0 +1,7 @@
+name: small
+cpu: 100m
+memory: 128Mi
+---
+name: large
+cpu: 1000m
+memory: 1Gi

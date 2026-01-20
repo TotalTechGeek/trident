@@ -1,0 +1,7 @@
+name: service-a
+replicas: 1
+memory: 256Mi
+---
+name: service-b
+replicas: 1
+memory: 256Mi

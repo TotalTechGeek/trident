@@ -1,0 +1,4 @@
+{
+  "description": "{{merge}} helper for merging objects",
+  "args": ["-i", "."]
+}

@@ -1,0 +1,4 @@
+{
+  "description": "$root directive for preserving $ properties",
+  "args": ["-i", "."]
+}

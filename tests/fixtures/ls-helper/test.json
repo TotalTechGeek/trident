@@ -1,0 +1,4 @@
+{
+  "description": "{{ls}} helper for listing files and directories",
+  "args": ["-i", "."]
+}

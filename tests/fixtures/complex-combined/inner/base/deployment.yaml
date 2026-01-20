@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: __SERVICE_NAME__
+  labels:
+    environment: __ENVIRONMENT__
+    managed-by: trident
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: __SERVICE_NAME__
+  template:
+    spec:
+      containers:
+        - name: __SERVICE_NAME__
+          image: registry.example.com/__SERVICE_NAME__:latest

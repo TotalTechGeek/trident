@@ -1,0 +1,6 @@
+$out: {{name}}/config.yaml
+$values:
+  - '.': globals.json
+name: {{name}}
+region: {{$values.region}}
+environment: {{$values.environment}}

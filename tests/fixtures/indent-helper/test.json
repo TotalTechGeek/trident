@@ -1,0 +1,4 @@
+{
+  "description": "{{indent}} helper for indenting content",
+  "args": ["-i", "."]
+}

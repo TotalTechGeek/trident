@@ -1,0 +1,4 @@
+$out: services/{{name}}.yaml
+kind: Service
+name: {{name}}
+port: {{port}}

@@ -1,0 +1,3 @@
+service: SERVICE_NAME
+env: ENV_PLACEHOLDER
+description: "This is SERVICE_NAME running in ENV_PLACEHOLDER"

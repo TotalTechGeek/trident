@@ -1,0 +1,11 @@
+name: service-a
+settings:
+  debug: true
+  log_level: verbose
+replicas: 5
+---
+name: service-b
+settings:
+  debug: false
+replicas: 15
+timeout: 60

@@ -1,0 +1,9 @@
+>> users/config.yaml
+service: users
+env: production
+description: This is users running in production
+
+>> orders/config.yaml
+service: orders
+env: staging
+description: This is orders running in staging

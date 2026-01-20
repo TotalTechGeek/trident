@@ -1,0 +1,13 @@
+>> web/deployment.yaml
+name: web
+spec:
+  container: null
+  image: nginx:latest
+  port: 80
+
+>> api/deployment.yaml
+name: api
+spec:
+  container: null
+  image: node:18
+  port: 3000
