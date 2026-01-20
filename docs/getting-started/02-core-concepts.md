@@ -240,10 +240,14 @@ Templates can invoke other templates, creating nested multiplication:
 ```yaml
 # template.yaml — iterates environments
 $template: services/template.yaml
-$manifest: services/manifest.yaml
+$manifest: services/environments.yaml
 environment: {{name}}
----
-# manifest.yaml (environments)
+```
+
+Could be paired with the following manifest:
+
+```yaml
+# environments.yaml 
 name: dev
 ---
 name: prod
