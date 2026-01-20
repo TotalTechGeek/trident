@@ -223,8 +223,6 @@ metadata: {{json (object "name" name "version" "1.0")}}
 
 ## Comparison Helpers
 
-From [handlebars-helpers](https://github.com/helpers/handlebars-helpers):
-
 ```yaml
 {{#if (eq environment "production")}}...{{/if}}
 {{#if (ne environment "development")}}...{{/if}}

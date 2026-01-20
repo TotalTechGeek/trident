@@ -230,7 +230,7 @@ database: {{$values.config.database}}
 
 ## Helpers
 
-Trident includes custom helpers plus [handlebars-helpers](https://github.com/helpers/handlebars-helpers):
+Trident includes custom helpers:
 
 ```yaml
 # Data
@@ -250,7 +250,7 @@ Trident includes custom helpers plus [handlebars-helpers](https://github.com/hel
 {{ls "configs/*.yaml"}}            # List files
 {{read_glob "*.yaml" true}}        # Read and parse multiple files
 
-# Comparison (from handlebars-helpers)
+# Comparison
 {{#if (eq a b)}}...{{/if}}
 {{#if (gt replicas 1)}}...{{/if}}
 {{#if (and condition1 condition2)}}...{{/if}}

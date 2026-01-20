@@ -1,6 +1,6 @@
 # Helper Reference
 
-Trident provides custom Handlebars helpers plus all helpers from [handlebars-helpers](https://github.com/helpers/handlebars-helpers).
+Trident provides custom Handlebars helpers.
 
 ## Trident Custom Helpers
 
@@ -275,7 +275,7 @@ port: {{port}}
 
 ---
 
-## Comparison Helpers (handlebars-helpers)
+## Comparison Helpers 
 
 ```yaml
 {{#if (eq a b)}}equal{{/if}}
