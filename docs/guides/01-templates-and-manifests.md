@@ -46,7 +46,9 @@ labels:
 
 ### The `name` Field
 
-By default, every manifest item must have a `name` field. This can be customized via schema, but `name` is a sensible default for most use cases.
+Every manifest item must have a `name` field. 
+
+This is a strong opinion held by the templating engine for simplicity of ergonomics.
 
 ## Template Structure
 
@@ -60,7 +62,7 @@ port: {{port}}
 
 ### Multiple Output Documents
 
-Generate multiple files per manifest item using `---`:
+Generate multiple files per manifest item using `---` in the template:
 
 ```yaml
 $out: {{name}}/deployment.yaml
@@ -171,16 +173,16 @@ For cases where you need literal string replacement:
 $in: base/config.yaml
 $out: {{name}}/config.yaml
 $replace:
-  __SERVICE_NAME__: {{name}}
-  __ENVIRONMENT__: production
+  SERVICE_NAME: {{name}}
+  ENVIRONMENT: production
 ```
 
-This replaces all occurrences of `__SERVICE_NAME__` and `__ENVIRONMENT__` in the output.
+This replaces all occurrences of `SERVICE_NAME` and `ENVIRONMENT` in the output.
 
 **When to use `$replace`:**
 - Legacy configs with placeholder patterns
 - When you need to replace the same value in many places
-- When the replacement target isn't a valid YAML key
+- When it's the simplest, lowest friction way to generate your output.
 
 ## Copying Files
 
@@ -273,7 +275,6 @@ metadata:
 ### 4. One Concern Per Template Document
 
 ```yaml
-# Good - each document has one purpose
 $out: {{name}}/deployment.yaml
 kind: Deployment
 # ...
@@ -281,16 +282,10 @@ kind: Deployment
 $out: {{name}}/service.yaml
 kind: Service
 # ...
-
-# Avoid - multiple resources in one file (harder to manage)
-$out: {{name}}/all.yaml
-kind: Deployment
-# ...
-# ---  (YAML separator in output, not template)
-# kind: Service
 ```
 
 ## Next Steps
 
-- Learn about [Schema Validation](./02-schema-validation.md)
+- Learn about how to [generate other file types in Trident](./02-text-file-generation.md)
+- Learn about [Schema Validation](./03-schema-validation.md)
 - Explore [Handlebars Templating](./03-handlebars-templating.md)

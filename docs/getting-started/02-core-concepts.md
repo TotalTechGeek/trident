@@ -55,7 +55,7 @@ team: platform
 **Key points:**
 - Each `---` creates a new item
 - Items can have any structure—use what your templates need
-- By default, each item needs a `name` field (used for merging)
+- Each item needs a `name` field (used for merging)
 - Items don't need identical fields (`worker` has no `port`)
 
 Manifests answer: "What things exist and what are their properties?"
@@ -330,5 +330,5 @@ database: {{$values.config.database.host}}
 
 - [Quick Start](./03-quick-start.md)
 - [Templates and Manifests Guide](../guides/01-templates-and-manifests.md) — detailed patterns
-- [Schema Validation](../guides/02-schema-validation.md) — defining and using schemas
+- [Schema Validation](../guides/03-schema-validation.md) — defining and using schemas
 - [Multi-Environment Recipe](../recipes/02-multi-environment.md) — real-world example

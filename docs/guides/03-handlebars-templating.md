@@ -13,6 +13,41 @@ port: {{port}}
 replicas: {{replicas}}
 ```
 
+## Automatic JSON Serialization
+
+Trident customizes Handlebars' escape behavior: **objects and arrays are automatically serialized to JSON**, while primitives (strings, numbers, booleans) are output as-is.
+
+```yaml
+# Manifest
+name: api
+port: 8080
+enabled: true
+labels:
+  team: backend
+  tier: api
+ports:
+  - 8080
+  - 8443
+
+# Template
+$out: {{name}}/config.yaml
+name: {{name}}           # api (string, as-is)
+port: {{port}}           # 8080 (number, as-is)
+enabled: {{enabled}}     # true (boolean, as-is)
+labels: {{labels}}       # {"team":"backend","tier":"api"} (object → JSON)
+ports: {{ports}}         # [8080,8443] (array → JSON)
+```
+
+This means you can embed complex data structures directly without needing the `json` helper:
+
+```yaml
+# These are equivalent:
+config: {{settings}}
+config: {{json settings}}
+```
+
+The `json` helper is still available when you want to be explicit or when composing with other helpers.
+
 ## Nested Properties
 
 Access nested values with dot notation:
@@ -207,7 +242,6 @@ From [handlebars-helpers](https://github.com/helpers/handlebars-helpers):
 ```yaml
 upper: {{uppercase name}}
 lower: {{lowercase name}}
-capitalized: {{capitalize name}}
 ```
 
 ## Math Helpers
@@ -322,5 +356,5 @@ spec:
 
 ## Next Steps
 
-- Explore [Custom Helpers](./04-custom-helpers.md)
+- Explore [Helper Reference](../reference/02-helpers.md)
 - Learn about [Global Values](./05-global-values.md)

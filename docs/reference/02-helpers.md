@@ -4,37 +4,7 @@ Trident provides custom Handlebars helpers plus all helpers from [handlebars-hel
 
 ## Trident Custom Helpers
 
-#### `{{parse string}}`
-
-Parses a YAML/JSON string into an object.
-
-```yaml
-{{#with (parse configString)}}
-  name: {{name}}
-{{/with}}
-```
-
----
-
-#### `{{merge obj1 obj2 ...}}`
-
-Deep merges multiple objects.
-
-```yaml
-combined: {{json (merge defaults overrides custom)}}
-```
-
----
-
-#### `{{object key1 val1 key2 val2 ...}}`
-
-Constructs an object from key-value pairs.
-
-```yaml
-metadata: {{json (object "name" name "version" "1.0")}}
-```
-
----
+### Data Helpers
 
 #### `{{default value fallback}}`
 
@@ -53,6 +23,38 @@ Returns the first truthy value.
 
 ```yaml
 database: {{or customDb envDb "localhost"}}
+```
+
+---
+
+#### `{{parse string}}`
+
+Parses a YAML/JSON string into an object.
+
+```yaml
+{{#with (parse configString)}}
+  name: {{name}}
+{{/with}}
+```
+
+---
+
+#### `{{merge obj1 obj2 ...}}`
+
+Deep merges multiple objects. Later objects override earlier ones.
+
+```yaml
+combined: {{json (merge defaults overrides custom)}}
+```
+
+---
+
+#### `{{object key1 val1 key2 val2 ...}}`
+
+Constructs an object from key-value pairs.
+
+```yaml
+metadata: {{object "name" name "version" "1.0"}}
 ```
 
 ---
@@ -79,6 +81,16 @@ replicas: {{max replicas 1}}  # At least 1
 
 ---
 
+#### Clamping Values
+
+
+
+```yaml
+replicas: {{clamp replicas 1 10}}  # Between 1 and 10
+```
+
+---
+
 ### File Helpers
 
 #### `{{read path}}`
@@ -94,10 +106,12 @@ certificate: |
 
 #### `{{hash path}}`
 
-Returns SHA256 hash of a file's contents.
+Returns SHA256 hash of a file's contents. Useful for cache-busting or triggering redeployments when configs change.
 
 ```yaml
-configHash: {{hash "config/app.json"}}
+metadata:
+  annotations:
+    config-hash: {{hash "config/app.json"}}
 ```
 
 ---
@@ -112,7 +126,7 @@ Lists files matching a glob pattern.
   - {{this}}
 {{/each}}
 
-# List directories
+# List directories (second argument = true)
 {{#each (ls "modules/*" true)}}
   - {{this}}
 {{/each}}
@@ -131,12 +145,21 @@ Reads multiple files matching a pattern. Returns array of `{name, path, content}
     content: {{this.content}}
 {{/each}}
 
-# Parsed YAML/JSON
+# Parsed YAML/JSON (second argument = true)
 {{#each (read_glob "services/*.yaml" true)}}
   - name: {{this.content.name}}
     port: {{this.content.port}}
 {{/each}}
 ```
+
+**Dynamic manifests:** Use `read_glob` to discover manifest items:
+
+```yaml
+$template: inner/template.yaml
+$manifest: {{read_glob "services/*.yaml" true}}
+```
+
+The inner template accesses parsed content via `{{content.field}}`.
 
 ---
 
@@ -161,7 +184,7 @@ Indents content by specified amount.
 spec:
   {{indent (use "partials/nested.yaml") 2}}
 
-# With custom character
+# With tabs
 {{indent content 1 "\t"}}
 ```
 
@@ -268,30 +291,20 @@ port: {{port}}
 
 ---
 
-## String Helpers (handlebars-helpers)
+## String Helpers 
 
 ```yaml
-{{uppercase name}}      # "API"
-{{lowercase name}}      # "api"
-{{capitalize name}}     # "Api"
-{{titleize name}}       # "My Service"
-{{dasherize name}}      # "my-service"
-{{underscore name}}     # "my_service"
-{{camelcase name}}      # "myService"
-{{pascalcase name}}     # "MyService"
-{{trim value}}          # Remove whitespace
-{{replace str old new}} # String replace
-{{split str delimiter}} # Split to array
-{{join arr delimiter}}  # Join array
-{{truncate str len}}    # Truncate string
-{{startsWith str prefix}}
-{{endsWith str suffix}}
-{{contains str substr}}
+{{uppercase name}}       # "API"
+{{lowercase name}}       # "api"
+{{trim value}}           # Remove whitespace
+{{replace str old new}}  # String replace
+{{truncate str len}}     # Truncate string
+{{in substr str}}        # Checks if substr is in str 
 ```
 
 ---
 
-## Math Helpers (handlebars-helpers)
+## Math Helpers
 
 ```yaml
 {{add a b}}        # a + b
@@ -299,71 +312,30 @@ port: {{port}}
 {{multiply a b}}   # a * b
 {{divide a b}}     # a / b
 {{modulo a b}}     # a % b
-{{floor value}}    # Round down
-{{ceil value}}     # Round up
-{{round value}}    # Round
-{{abs value}}      # Absolute value
 ```
+
+These are also variadic.
 
 ---
 
-## Array Helpers (handlebars-helpers)
+## Object Helpers
 
 ```yaml
-{{first array}}           # First element
-{{last array}}            # Last element
-{{length array}}          # Array length
-{{reverse array}}         # Reverse array
-{{sort array}}            # Sort array
-{{unique array}}          # Remove duplicates
-{{pluck array key}}       # Extract property
-{{filter array callback}} # Filter items
-{{map array callback}}    # Transform items
-{{concat arr1 arr2}}      # Concatenate
-{{slice array start end}} # Slice array
-{{indexOf array value}}   # Find index
-{{includes array value}}  # Check inclusion
-```
-
----
-
-## Object Helpers (handlebars-helpers)
-
-```yaml
-{{keys object}}           # Get keys
-{{values object}}         # Get values
-{{pick object key1 key2}} # Select keys
-{{omit object key1 key2}} # Exclude keys
-{{extend obj1 obj2}}      # Merge objects
-{{get object path}}       # Get nested value
 {{lookup object key}}     # Dynamic lookup
-{{hasOwn object key}}     # Check property
 ```
 
 ---
 
-## Date Helpers (handlebars-helpers)
-
-```yaml
-{{now}}                   # Current timestamp
-{{moment date format}}    # Format date
-{{year date}}             # Get year
-{{month date}}            # Get month
-{{day date}}              # Get day
-```
-
----
-
-## Helper Composition
+## Composing Helpers
 
 Helpers can be nested:
 
 ```yaml
 # Clamp value between 1 and 10
-replicas: {{min (max replicas 1) 10}}
+replicas: {{clamp replicas 1 10}}
 
 # Merge and serialize
-env: {{json (merge defaults overrides)}}
+env: {{merge defaults overrides}}
 
 # Conditional with comparison
 {{#if (and (gt replicas 1) enabled)}}
@@ -374,8 +346,39 @@ env: {{json (merge defaults overrides)}}
 version: {{get (parse (read "package.json")) "version"}}
 ```
 
+---
+
+## Practical Examples
+
+### Config Hash for Redeployment
+
+```yaml
+$out: {{name}}/deployment.yaml
+metadata:
+  annotations:
+    checksum/config: {{hash "configs/{{name}}.yaml"}}
+```
+
+### Dynamic Service Discovery
+
+```yaml
+$out: gateway/routes.yaml
+routes:
+{{#each (read_glob "services/*/routes.yaml" true)}}
+  - service: {{this.name}}
+    routes: {{json this.content.routes}}
+{{/each}}
+```
+
+### Environment-Aware Defaults
+
+```yaml
+$out: {{name}}/config.yaml
+database:
+  host: {{default database.host (or $values.defaultDbHost "localhost")}}
+  pool: {{min (default database.pool 10) 20}}
+```
+
 ## See Also
 
 - [Handlebars Templating Guide](../guides/03-handlebars-templating.md)
-- [Custom Helpers Guide](../guides/04-custom-helpers.md)
-- [handlebars-helpers documentation](https://github.com/helpers/handlebars-helpers)

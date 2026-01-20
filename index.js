@@ -75,13 +75,6 @@ hbs.engine.addMethod('import', (args, ctx) => {
 }, { useContext: true, sync: true })
 
 
-function compileSubTemplate (template) {
-    if (template in templateBaseCache) return templateBaseCache[template]
-    if (!fs.existsSync(template)) throw new Error('File not found: ' + template)
-    templateBaseCache[template] = hbs.compile(readTemplate(template))
-    return templateBaseCache[template]
-}
-
 hbs.engine.addMethod('indent', ([content, level, char]) => {
     const indent = (char || ' ').repeat(level)
     return content.split('\n').map((line, x) => (x === 0 ? '' : indent) + line).join('\n')
@@ -125,16 +118,10 @@ hbs.engine.addMethod('ls', ([pth, directories = false], ctx, abv) => {
     })
 }, { sync: true })
 
-
-hbs.engine.addMethod('read', ([file], ctx, abv) => {
-    return fs.readFileSync(resolvePath(file, getTemplateLocation(ctx, abv)), 'utf8')
-}, { sync: true })
-
-
-hbs.engine.addMethod('use', (args, ctx, abv) => {
-    const file = resolvePath(args[0], getTemplateLocation(ctx, abv))
-    return compileSubTemplate(file)(ctx)
-}, { useContext: true, sync: true })
+hbs.engine.addMethod('trim', ([str]) => str.trim(), { deterministic: true, sync: true, optimizeUnary: true })
+hbs.engine.addMethod('replace', ([str, old, tweaked]) => str.replace(new RegExp(old, 'g'), tweaked), { deterministic: true, sync: true, optimizeUnary: true })
+hbs.engine.addMethod('clamp', ([value, min, max]) => Math.min(Math.max(value, min), max), { deterministic: true, sync: true })
+hbs.engine.addMethod('read', ([file], ctx, abv) => fs.readFileSync(resolvePath(file, getTemplateLocation(ctx, abv)), 'utf8'), { sync: true })
 
 let count = 0, failed = 0, written = 0
 
@@ -148,6 +135,7 @@ function getFiles (input) {
     if (fs.statSync(input).isDirectory() && fs.existsSync(input + '/template.yaml')) {
         const result = [input + '/template.yaml', fs.existsSync(input + '/manifest.yaml') ? input + '/manifest.yaml' : [{}]]
         if (fs.existsSync(input + '/schema.json')) result.push(input + '/schema.json')
+        else if (fs.existsSync(input + '/schema.yaml')) result.push(input + '/schema.yaml')
         return result
     }
 

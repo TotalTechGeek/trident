@@ -1,4 +1,0 @@
-$out: {{name}}/deployment.yaml
-name: {{name}}
-spec:
-  {{use "partials/container.yaml"}}

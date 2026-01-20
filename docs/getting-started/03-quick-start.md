@@ -108,7 +108,7 @@ spec:
 ...
 ```
 
-## Adding a Base Configuration (Optional)
+## Adding a Base Configuration (Optional & Recommended)
 
 When templates share common boilerplate, extract it to a base file.
 
@@ -168,7 +168,11 @@ spec:
 
 ## Merging Multiple Manifests (Optional)
 
-Override specific values per environment by merging manifests.
+Sometimes, you may have use-cases where you want to provide overrides for items in your manifest, typically per environment. Whenever you opt into several manifests, it will merge items of the same name, last writer wins. 
+
+This allows you to create setups that allow you to bake overrides into a file, like a `prod.yaml`. 
+
+This can be quite helpful for various GitOps setups, avoiding conflicts for environment overrides when merging between branches.
 
 Create `manifest.yaml` (defaults):
 ```yaml
@@ -177,9 +181,10 @@ replicas: 1
 ---
 name: web
 replicas: 1
+level: DEBUG
 ```
 
-Create `prod-overrides.yaml`:
+Create `prod.yaml`:
 ```yaml
 name: api
 replicas: 10
@@ -188,13 +193,13 @@ name: web
 replicas: 5
 ```
 
-Reference both in your template:
+Reference both in your template, usually you'll want to template this:
 ```yaml
 # $manifest can be a list - items with the same name are merged
 $template: deploy.yaml
 $manifest:
   - manifest.yaml
-  - prod-overrides.yaml
+  - {{default $values.env 'stage'}}.yaml 
 ```
 
 Items with the same `name` are deep merged. The `api` service gets `replicas: 10`.
@@ -204,14 +209,14 @@ Items with the same `name` are deep merged. The `api` service gets `replicas: 10
 Inject values available to all templates:
 
 ```bash
-trident -i . -v environment=production -v region=us-west-2
+trident -i . -v env=prod -v region=us-west-2
 ```
 
 Access them via `$values`:
 
 ```yaml
 $out: {{name}}/config.yaml
-environment: {{$values.environment}}
+environment: {{$values.env}}
 region: {{$values.region}}
 ```
 
@@ -229,6 +234,5 @@ region: {{$values.region}}
 
 ## Next Steps
 
-- [Core Concepts](./03-core-concepts.md) — deeper dive into multiplication and merging
-- [Schema Validation](../guides/02-schema-validation.md) — validate inputs and set defaults
-- [Multi-Environment Recipe](../recipes/02-multi-environment.md) — real-world patterns
+- [Templates and Manifests Guide](../guides/01-templates-and-manifests.md) — detailed patterns
+- [Schema Validation](../guides/03-schema-validation.md) — validate inputs and set defaults

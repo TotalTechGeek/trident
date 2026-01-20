@@ -96,18 +96,12 @@ trident -i ./my-project --dry    # Preview without writing
 ## Guides
 
 - [Templates and Manifests](./guides/01-templates-and-manifests.md) - Deep dive into the multiplication model
-- [Schema Validation](./guides/02-schema-validation.md) - Validate inputs and set defaults
+- [Text File Generation](./guides/02-text-file-generation.md) - Generate nginx configs, scripts, and more
+- [Schema Validation](./guides/03-schema-validation.md) - Validate inputs and set defaults
 - [Handlebars Templating](./guides/03-handlebars-templating.md) - Templating syntax and helpers
-- [Custom Helpers](./guides/04-custom-helpers.md) - File reading, hashing, and more
 - [Global Values](./guides/05-global-values.md) - Share configuration across templates
 - [Nested Templates](./guides/06-nested-templates.md) - Compose templates for complex structures
 
-## Recipes
-
-- [Kubernetes Deployments](./recipes/01-kubernetes-deployments.md) - Generate K8s manifests
-- [Multi-Environment](./recipes/02-multi-environment.md) - Dev/staging/prod from one source
-- [Dynamic Discovery](./recipes/03-dynamic-discovery.md) - Auto-discover config files
-- [Text Files](./recipes/04-text-file-generation.md) - nginx configs, scripts, and more
 
 ## Reference
 

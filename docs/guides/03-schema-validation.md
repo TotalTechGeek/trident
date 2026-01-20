@@ -315,4 +315,4 @@ Set to `false` to catch typos in manifest keys.
 ## Next Steps
 
 - Learn about [Handlebars Templating](./03-handlebars-templating.md)
-- Explore [Custom Helpers](./04-custom-helpers.md)
+- Explore [Helper Reference](../reference/02-helpers.md)

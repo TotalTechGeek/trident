@@ -1,6 +1,6 @@
-# Recipe: Text File Generation
+# Text File Generation
 
-This recipe shows how to generate non-YAML/JSON files like nginx configs, INI files, and shell scripts.
+This guide shows how to generate non-YAML/JSON files like nginx configs, INI files, and shell scripts.
 
 ## The `$text` Directive
 
