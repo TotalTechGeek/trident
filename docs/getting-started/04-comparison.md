@@ -39,42 +39,47 @@ Your GitOps repo stays clean: manifests describe what you have, templates descri
 |---------|---------|------|-----------|---------|
 | Templating | Yes (Handlebars) | Yes (Go templates) | No | Yes (custom) |
 | Patching/Overlays | Yes (deep merge) | No | Yes | Yes |
-| Multiplicative | Yes | No | No | Manual |
+| Multiplicative | Yes | No (1MB release limit) | No | Manual |
 | Manifest Merging | Yes (by name) | No | Yes (patches) | Manual |
 | Schema Validation | Yes (JSON Schema) | Yes (values schema) | No | No |
 | Kubernetes-specific | No | Yes | Yes | No |
 | Output Formats | YAML, JSON, XML, text | YAML | YAML | JSON |
-| Add a service | ~3 lines, 0 new files | ~3 lines in values array | ~3 new files, ~15 lines | ~3 lines in array |
-| Add env override | ~3 lines in override file | Complex values nesting | New overlay directory | Manual merge logic |
+| Add a service | ~3 lines, 0 new files | New values file + helm install | ~3 new files, ~15 lines | ~3 lines in array |
+| Add env override | ~3 lines in override file | Separate values per env per svc | New overlay directory | Manual merge logic |
 
 ## Helm
 
 [Helm](https://helm.sh/) is the Kubernetes package manager, using Go templates.
 
-**Helm's approach:**
-```yaml
-# values.yaml
-services:
-  - name: api
-    replicas: 3
-  - name: web
-    replicas: 2
+**The Helm scaling problem:** Helm stores release data in Kubernetes Secrets/ConfigMaps, which have a ~1MB limit. This means you can't realistically loop over many services in a single chart—the rendered output will exceed the limit. The recommended pattern is **one Helm release per service**.
 
-# templates/deployment.yaml
-{{- range .Values.services }}
+**Typical Helm setup (one release per service):**
+```yaml
+# api/values.yaml
+name: api
+replicas: 3
+
+# web/values.yaml
+name: web
+replicas: 2
+
+# Shared chart templates/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .name }}
+  name: {{ .Values.name }}
 spec:
-  replicas: {{ .replicas }}
----
-{{- end }}
+  replicas: {{ .Values.replicas }}
+```
+```bash
+helm install api ./chart -f api/values.yaml
+helm install web ./chart -f web/values.yaml
+# ... repeat for each service
 ```
 
 **Trident's approach:**
 ```yaml
-# manifest.yaml
+# manifest.yaml (all services in one file)
 name: api
 replicas: 3
 ---
@@ -90,22 +95,26 @@ metadata:
 spec:
   replicas: {{replicas}}
 ```
+```bash
+trident -i .  # generates all services
+```
 
 **Key differences:**
 
 | Aspect | Helm | Trident |
 |--------|------|---------|
-| **Iteration** | Explicit loops in templates | Implicit via manifest items |
-| **Output** | Single file with separators | Separate files per resource |
+| **Scaling** | 1MB limit per release → one release per service | No limit, all services in one run |
+| **Iteration** | Separate install per service (or hit size limits) | Implicit via manifest items |
+| **Output** | Applied directly to cluster | Files on disk (GitOps friendly) |
 | **Patching** | Not supported | Deep merge with `$in` / overlaying manifests |
 | **Scope** | Kubernetes-focused | General purpose |
 | **Packaging** | Charts with dependencies | Plain files |
-| **Add a service** | ~5 lines in values array | ~3 lines in manifest, 0 new files |
-| **Add env override** | Nested values + conditionals | ~3 lines in override file |
+| **Add a service** | New values file + helm install (~1 file, ~10 lines, new release) | ~3 lines in manifest, 0 new files |
+| **Add env override** | Separate values files per env per service | ~3 lines in override file |
 
-**When to use Helm:** You want a package manager with versioning, dependencies, and a large ecosystem of pre-built charts.
+**When to use Helm:** You want a package manager with versioning, rollback, dependencies, and a large ecosystem of pre-built charts. Best for installing third-party software.
 
-**When to use Trident:** You want to generate many files from data without explicit loops, need patching/overlays, or aren't targeting Kubernetes.
+**When to use Trident:** You're managing many services and want them defined in one place. You want GitOps-friendly file output rather than direct cluster management.
 
 ## Kustomize
 
