@@ -324,6 +324,7 @@ database: {{$values.config.database.host}}
 
 ## Next Steps
 
+- [Quick Start](./03-quick-start.md)
 - [Templates and Manifests Guide](../guides/01-templates-and-manifests.md) — detailed patterns
 - [Schema Validation](../guides/02-schema-validation.md) — defining and using schemas
 - [Multi-Environment Recipe](../recipes/02-multi-environment.md) — real-world example

@@ -191,4 +191,4 @@ The rules:
 
 ## Next Steps
 
-Ready to try it? Continue to the [Quick Start](./02-quick-start.md) guide.
+Ready to try it? Continue to the [Core Concepts](./02-core-concepts.md) guide.
