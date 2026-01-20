@@ -250,40 +250,48 @@ Schemas catch errors early (wrong types, missing required fields) and reduce rep
 
 ## Nested Templates
 
-Templates can invoke other templates, creating nested multiplication:
+Templates can invoke other templates using `$template` and `$manifest`. This serves two purposes:
+
+### Project Organization
+
+A root template can orchestrate multiple sub-templates, each with their own manifest configurations:
+
+```yaml
+# template.yaml — project entry point
+$template: backend/template.yaml
+$manifest:
+  - backend/manifest.yaml
+  - backend/{{$values.env}}-overrides.yaml
+---
+$template: frontend/template.yaml
+$manifest: frontend/manifest.yaml
+```
+
+This keeps your entry point clean—run `trident -i . -v env=prod` and everything is configured correctly.
+
+### Multiplicative Composition
+
+Nested templates also multiply together. An outer template iterating environments with an inner template iterating services:
 
 ```yaml
 # template.yaml — iterates environments
 $template: services/template.yaml
-$manifest: services/environments.yaml
+$manifest: services/manifest.yaml
 environment: {{name}}
-```
-
-Could be paired with the following manifest:
-
-```yaml
-# environments.yaml 
+---
+# manifest.yaml (environments)
 name: dev
 ---
 name: prod
 ```
 
 ```yaml
-# services/template.yaml — iterates services
+# services/template.yaml — iterates services, outputs 2 files each
 $out: {{environment}}/{{name}}/deployment.yaml
 ...
 ---
 $out: {{environment}}/{{name}}/service.yaml
 ...
-```
-
-```yaml
-# services/manifest.yaml (services)
-name: api
----
-name: web
----
-name: worker
 ```
 
 **Total output:** 2 environments × 3 services × 2 files = **12 files**

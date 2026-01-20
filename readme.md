@@ -157,8 +157,20 @@ $schema: schema.json
 
 ### Nested Templates
 
-Templates can invoke other templates for nested multiplication:
+Templates can invoke other templates. This is useful for:
 
+**Project organization** — A root template orchestrates sub-templates with their manifests:
+```yaml
+$template: backend/template.yaml
+$manifest:
+  - backend/manifest.yaml
+  - backend/{{$values.env}}-overrides.yaml
+---
+$template: frontend/template.yaml
+$manifest: frontend/manifest.yaml
+```
+
+**Multiplicative composition** — Outer and inner templates multiply together:
 ```yaml
 $template: services/template.yaml
 $manifest: services/manifest.yaml

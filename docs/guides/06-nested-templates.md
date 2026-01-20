@@ -2,6 +2,47 @@
 
 Trident templates can invoke other templates, enabling modular and reusable configurations.
 
+## Why Nest Templates?
+
+There are two main reasons to use nested templates:
+
+1. **Project organization** — A root template acts as an entry point that orchestrates sub-templates with their correct manifests and configurations. This is especially useful when you have different kinds of resources (services, jobs, configmaps) that each need their own template/manifest pairs.
+
+2. **Multiplicative composition** — Outer templates multiply with inner templates. For example, iterating over environments in the outer template and services in the inner template produces `environments × services × files`.
+
+Both patterns are common and can be combined.
+
+## Project Root Pattern
+
+A root template can serve as your project's entry point, configuring which sub-templates to run with which manifests:
+
+```yaml
+# template.yaml — project root
+# Backend services use their own template and get prod overrides
+$template: backend/template.yaml
+$manifest:
+  - backend/manifest.yaml
+  - backend/{{$values.env}}-overrides.yaml
+$schema: backend/schema.json
+---
+# Frontend services have different structure
+$template: frontend/template.yaml
+$manifest:
+  - frontend/manifest.yaml
+  - frontend/{{$values.env}}-overrides.yaml
+---
+# Shared infrastructure
+$template: infra/template.yaml
+$manifest: infra/manifest.yaml
+```
+
+Run with:
+```bash
+trident -i . -v env=prod
+```
+
+This pattern keeps your entry point clean and declarative—it says "run these templates with these manifests" without containing any output logic itself.
+
 ## Basic Nesting
 
 Use `$template` and `$manifest` to call another template:
@@ -220,7 +261,31 @@ output/
 
 ## Best Practices
 
-### 1. Keep Templates Focused
+### 1. Use a Root Template for Complex Projects
+
+For projects with multiple resource types, create a root template that orchestrates everything:
+
+```yaml
+# template.yaml — single entry point
+$template: services/template.yaml
+$manifest:
+  - services/base.yaml
+  - services/{{$values.env}}.yaml
+---
+$template: jobs/template.yaml
+$manifest: jobs/manifest.yaml
+---
+$template: config/template.yaml
+$manifest: config/manifest.yaml
+```
+
+Benefits:
+- One command runs everything: `trident -i . -v env=prod`
+- Environment-specific overrides are configured in one place
+- Easy to see project structure at a glance
+- Sub-templates stay focused on their specific output
+
+### 2. Keep Templates Focused
 
 Each template should do one thing well:
 
