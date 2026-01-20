@@ -1,5 +1,5 @@
 $in: base/deployment.yaml
-$out: {{content.name}}/deployment.yaml
+$out: {{environment}}/{{content.name}}/deployment.yaml
 $replace:
   __SERVICE_NAME__: {{content.name}}
   __ENVIRONMENT__: {{$values.env.name}}

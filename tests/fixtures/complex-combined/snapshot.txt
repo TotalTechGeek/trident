@@ -1,4 +1,4 @@
->> api/deployment.yaml
+>> dev/api/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -65,7 +65,7 @@ data:
   LOG_LEVEL: debug
   ENDPOINT: https://api.dev.example.com/api
 
->> web/deployment.yaml
+>> dev/web/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -132,7 +132,7 @@ data:
   LOG_LEVEL: debug
   ENDPOINT: https://web.dev.example.com/api
 
->> api/deployment.yaml
+>> prod/api/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -199,7 +199,7 @@ data:
   LOG_LEVEL: warn
   ENDPOINT: https://api.example.com/api
 
->> web/deployment.yaml
+>> prod/web/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:

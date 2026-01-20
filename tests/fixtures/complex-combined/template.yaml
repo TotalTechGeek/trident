@@ -1,7 +1,6 @@
-$chdir: output/{{name}}
----
 $template: inner/template.yaml
 $manifest: {{read_glob "services/*.yaml" true}}
+environment: {{name}}
 $values:
   - env:
       name: {{name}}
