@@ -1,0 +1,100 @@
+>> users/Bret/profile.yaml
+user:
+  id: 1
+  name: Leanne Graham
+  username: Bret
+  email: Sincere@april.biz
+  company: Romaguera-Crona
+
+>> users/Bret/config.json
+{"username":"Bret","settings":{"notifications":true,"theme":"default"}}
+>> users/Antonette/profile.yaml
+user:
+  id: 2
+  name: Ervin Howell
+  username: Antonette
+  email: Shanna@melissa.tv
+  company: Deckow-Crist
+
+>> users/Antonette/config.json
+{"username":"Antonette","settings":{"notifications":true,"theme":"default"}}
+>> users/Samantha/profile.yaml
+user:
+  id: 3
+  name: Clementine Bauch
+  username: Samantha
+  email: Nathan@yesenia.net
+  company: Romaguera-Jacobson
+
+>> users/Samantha/config.json
+{"username":"Samantha","settings":{"notifications":true,"theme":"default"}}
+>> users/Karianne/profile.yaml
+user:
+  id: 4
+  name: Patricia Lebsack
+  username: Karianne
+  email: Julianne.OConner@kory.org
+  company: Robel-Corkery
+
+>> users/Karianne/config.json
+{"username":"Karianne","settings":{"notifications":true,"theme":"default"}}
+>> users/Kamren/profile.yaml
+user:
+  id: 5
+  name: Chelsey Dietrich
+  username: Kamren
+  email: Lucio_Hettinger@annie.ca
+  company: Keebler LLC
+
+>> users/Kamren/config.json
+{"username":"Kamren","settings":{"notifications":true,"theme":"default"}}
+>> users/Leopoldo_Corkery/profile.yaml
+user:
+  id: 6
+  name: Mrs. Dennis Schulist
+  username: Leopoldo_Corkery
+  email: Karley_Dach@jasper.info
+  company: Considine-Lockman
+
+>> users/Leopoldo_Corkery/config.json
+{"username":"Leopoldo_Corkery","settings":{"notifications":true,"theme":"default"}}
+>> users/Elwyn.Skiles/profile.yaml
+user:
+  id: 7
+  name: Kurtis Weissnat
+  username: Elwyn.Skiles
+  email: Telly.Hoeger@billy.biz
+  company: Johns Group
+
+>> users/Elwyn.Skiles/config.json
+{"username":"Elwyn.Skiles","settings":{"notifications":true,"theme":"default"}}
+>> users/Maxime_Nienow/profile.yaml
+user:
+  id: 8
+  name: Nicholas Runolfsdottir V
+  username: Maxime_Nienow
+  email: Sherwood@rosamond.me
+  company: Abernathy Group
+
+>> users/Maxime_Nienow/config.json
+{"username":"Maxime_Nienow","settings":{"notifications":true,"theme":"default"}}
+>> users/Delphine/profile.yaml
+user:
+  id: 9
+  name: Glenna Reichert
+  username: Delphine
+  email: Chaim_McDermott@dana.io
+  company: Yost and Sons
+
+>> users/Delphine/config.json
+{"username":"Delphine","settings":{"notifications":true,"theme":"default"}}
+>> users/Moriah.Stanton/profile.yaml
+user:
+  id: 10
+  name: Clementina DuBuque
+  username: Moriah.Stanton
+  email: Rey.Padberg@karina.biz
+  company: Hoeger LLC
+
+>> users/Moriah.Stanton/config.json
+{"username":"Moriah.Stanton","settings":{"notifications":true,"theme":"default"}}

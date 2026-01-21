@@ -1,0 +1,2 @@
+$template: inner.yaml
+$manifest: {{exec "curl -s https://jsonplaceholder.typicode.com/users"}}

@@ -1,0 +1,4 @@
+{
+  "description": "Using $exec with --enable-exec flag",
+  "args": ["-i", ".", "--enable-exec"]
+}

@@ -1,0 +1,13 @@
+$out: users/{{username}}/profile.yaml
+user:
+  id: {{id}}
+  name: {{name}}
+  username: {{username}}
+  email: {{email}}
+  company: {{company.name}}
+---
+$out: users/{{username}}/config.json
+username: {{username}}
+settings:
+  notifications: true
+  theme: default
