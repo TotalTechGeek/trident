@@ -11,7 +11,7 @@ metadata:
 spec:
   replicas: {{multiply content.replicas $values.env.replicas_multiplier}}
 ---
-$out: {{content.name}}/service.yaml
+$out: {{environment}}/{{content.name}}/service.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -25,7 +25,7 @@ spec:
     - port: {{content.port}}
       targetPort: {{content.port}}
 ---
-$out: {{content.name}}/nginx.conf
+$out: {{environment}}/{{content.name}}/nginx.conf
 $text: |
   # Nginx config for {{content.name}} ({{$values.env.name}})
   upstream {{content.name}}_backend {
@@ -50,7 +50,7 @@ $text: |
 $replace:
   $host: "$host"
 ---
-$out: {{content.name}}/configmap.yaml
+$out: {{environment}}/{{content.name}}/configmap.yaml
 $replace:
   __SERVICE__: {{content.name}}
   __ENV__: {{$values.env.name}}

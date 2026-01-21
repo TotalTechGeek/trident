@@ -18,7 +18,7 @@ spec:
         - name: api
           image: registry.example.com/api:latest
 
->> api/service.yaml
+>> dev/api/service.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -32,7 +32,7 @@ spec:
     - port: 8080
       targetPort: 8080
 
->> api/nginx.conf
+>> dev/api/nginx.conf
 # Nginx config for api (dev)
 upstream api_backend {
     server api-svc:8080;
@@ -54,7 +54,7 @@ server {
     }
 }
 
->> api/configmap.yaml
+>> dev/api/configmap.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -85,7 +85,7 @@ spec:
         - name: web
           image: registry.example.com/web:latest
 
->> web/service.yaml
+>> dev/web/service.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -99,7 +99,7 @@ spec:
     - port: 3000
       targetPort: 3000
 
->> web/nginx.conf
+>> dev/web/nginx.conf
 # Nginx config for web (dev)
 upstream web_backend {
     server web-svc:3000;
@@ -121,7 +121,7 @@ server {
     }
 }
 
->> web/configmap.yaml
+>> dev/web/configmap.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -152,7 +152,7 @@ spec:
         - name: api
           image: registry.example.com/api:latest
 
->> api/service.yaml
+>> prod/api/service.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -166,7 +166,7 @@ spec:
     - port: 8080
       targetPort: 8080
 
->> api/nginx.conf
+>> prod/api/nginx.conf
 # Nginx config for api (prod)
 upstream api_backend {
     server api-svc:8080;
@@ -188,7 +188,7 @@ server {
     }
 }
 
->> api/configmap.yaml
+>> prod/api/configmap.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -219,7 +219,7 @@ spec:
         - name: web
           image: registry.example.com/web:latest
 
->> web/service.yaml
+>> prod/web/service.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -233,7 +233,7 @@ spec:
     - port: 3000
       targetPort: 3000
 
->> web/nginx.conf
+>> prod/web/nginx.conf
 # Nginx config for web (prod)
 upstream web_backend {
     server web-svc:3000;
@@ -255,7 +255,7 @@ server {
     }
 }
 
->> web/configmap.yaml
+>> prod/web/configmap.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:

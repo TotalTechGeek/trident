@@ -34,7 +34,8 @@ function normalizeOutput(output) {
 }
 
 function runTrident(args, cwd) {
-  const result = spawnSync('node', [tridentBin, ...args], {
+
+  const result = spawnSync(process.argv0, [tridentBin, ...args], {
     cwd,
     encoding: 'utf8',
     env: { ...process.env, FORCE_COLOR: '0' }
